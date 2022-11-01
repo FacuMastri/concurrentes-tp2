@@ -1,4 +1,4 @@
-TARGETS = coffe_maker server common
+TARGETS = coffee_maker server common
 
 all: fmt test clippy;
 
