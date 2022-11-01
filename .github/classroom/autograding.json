@@ -1,9 +1,9 @@
 {
   "tests": [
     {
-      "name": "test sever",
+      "name": "run tests",
       "setup": "",
-      "run": "cd sever && cargo test",
+      "run": "cargo test",
       "input": "",
       "output": "",
       "comparison": "included",
@@ -11,9 +11,9 @@
       "points": null
     },
     {
-      "name": "test coffee_maker",
+      "name": "run fmt",
       "setup": "",
-      "run": "cd coffee_maker && cargo test",
+      "run": "cargo fmt",
       "input": "",
       "output": "",
       "comparison": "included",
@@ -21,9 +21,9 @@
       "points": null
     },
     {
-      "name": "test common",
+      "name": "run clippy",
       "setup": "",
-      "run": "cd common && cargo test",
+      "run": "cargo clippy",
       "input": "",
       "output": "",
       "comparison": "included",

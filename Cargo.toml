@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "coffee_maker",
+  "server",
+  "common/util"
+]
