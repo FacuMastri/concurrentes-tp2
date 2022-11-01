@@ -1,9 +1,29 @@
 {
   "tests": [
     {
-      "name": "cargo test",
+      "name": "test sever",
       "setup": "",
-      "run": "cargo test",
+      "run": "cd sever && cargo test",
+      "input": "",
+      "output": "",
+      "comparison": "included",
+      "timeout": 10,
+      "points": null
+    },
+    {
+      "name": "test coffee_maker",
+      "setup": "",
+      "run": "cd coffee_maker && cargo test",
+      "input": "",
+      "output": "",
+      "comparison": "included",
+      "timeout": 10,
+      "points": null
+    },
+    {
+      "name": "test common",
+      "setup": "",
+      "run": "cd common && cargo test",
       "input": "",
       "output": "",
       "comparison": "included",
