@@ -1,3 +1,7 @@
+# Development
+
+- `make` in the root directory will run `fmt`, `test` and `clippy` for the target dirs.
+
 # Trabajo Práctico
 
 **Fecha de Entrega:** 22 de noviembre de 2022
