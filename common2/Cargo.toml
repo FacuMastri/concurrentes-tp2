@@ -1,7 +1,0 @@
-[workspace]
-members = [
-    "logger",
-    "threadpool",
-    "packets",
-    "thread_joiner"
-]
