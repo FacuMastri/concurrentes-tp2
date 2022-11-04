@@ -1,30 +1,42 @@
 mod orders;
-use actix::prelude::*;
-use orders::{OrderTaker, TakeOrders};
+use std::{
+    sync::{Arc, Barrier},
+    thread,
+    time::Duration,
+};
 
-use util::hello_world;
+use actix::prelude::*;
+use orders::*;
+
+const DISPENSERS: usize = 3;
 
 #[actix_rt::main]
 async fn main() {
-    // start new actor
-    let addr = OrderTaker {}.start();
+    let path = String::from("../assets/orders.csv");
 
-    // send message and get future for result
-    let res = addr.send(TakeOrders(hello_world())).await;
+    let order_handler = SyncArbiter::start(DISPENSERS, || OrderHandler {});
 
-    // print result
-    println!("RESULT: {:?}", res);
+    let order_handler_clone = order_handler.clone();
+    let order_taker = SyncArbiter::start(1, move || OrderTaker {
+        handler: order_handler_clone.clone(),
+    });
 
-    // stop system and exit
-    System::current().stop();
+    order_taker
+        .send(TakeOrders(path))
+        .await
+        .expect("Failed to take orders");
+
+    let stop_barrier = Arc::new(Barrier::new(DISPENSERS));
+    for i in 0..DISPENSERS {
+        let stop_barrier = stop_barrier.clone();
+        order_handler
+            .try_send(WaitStop(Some(stop_barrier)))
+            .unwrap();
+        println!("Sent stop signal to handler {}", i);
+    }
+
+    order_handler.send(WaitStop(None)).await.unwrap();
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hello_world() {
-        assert_eq!(hello_world(), "Hello World");
-    }
-}
+mod tests {}

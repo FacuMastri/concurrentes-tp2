@@ -1,16 +1,37 @@
-use super::TakeOrders;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    thread,
+    time::Duration,
+};
+
+use super::{HandleOrder, Order, OrderHandler, TakeOrders};
 use actix::prelude::*;
 
-pub struct OrderTaker {}
+pub struct OrderTaker {
+    pub handler: Addr<OrderHandler>,
+}
 
 impl Actor for OrderTaker {
-    type Context = Context<Self>;
+    type Context = SyncContext<Self>;
 }
 
 impl Handler<TakeOrders> for OrderTaker {
     type Result = ();
 
-    fn handle(&mut self, msg: TakeOrders, _ctx: &mut Context<Self>) -> Self::Result {
-        println!("OrderTaker received: {}", msg.0);
+    fn handle(&mut self, msg: TakeOrders, _ctx: &mut SyncContext<Self>) -> Self::Result {
+        let file_path = msg.0;
+        let file = File::open(file_path).unwrap();
+        let reader = BufReader::new(file);
+
+        for line in reader.lines() {
+            if let Ok(order) = Order::parse(line.unwrap()) {
+                println!("Order taken: {:?}", order);
+                self.handler.do_send(HandleOrder(order));
+                thread::sleep(Duration::from_secs(1));
+            }
+        }
+
+        println!("Done taking orders");
     }
 }

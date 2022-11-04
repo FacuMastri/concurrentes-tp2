@@ -1,31 +1,20 @@
+use std::sync::{Arc, Barrier};
+
 use actix::prelude::*;
 
-pub enum Order {
-    UsePoints(usize),
-    FillPoints(usize),
-}
+use super::Order;
 
 // Order Taker
+type FilePath = String;
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct TakeOrders(pub String);
-
-// Order Store
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct NoMoreOrders;
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct StoreOrder(pub Order);
-
-/*
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct AskOrder(pub Addr<OrderHandler>);
-*/
+pub struct TakeOrders(pub FilePath);
 
 // Order Handler
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct HandleOrder(pub Order);
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct WaitStop(pub Option<Arc<Barrier>>);
