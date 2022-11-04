@@ -1,33 +1,39 @@
 mod orders;
-use std::{
-    sync::{Arc, Barrier},
-    thread,
-    time::Duration,
-};
+use std::sync::{Arc, Barrier};
 
 use actix::prelude::*;
 use orders::*;
 
 const DISPENSERS: usize = 3;
 
+// Result with any error
+type Res = Result<(), Box<dyn std::error::Error>>;
+
 #[actix_rt::main]
-async fn main() {
+async fn main() -> Res {
     let path = String::from("../assets/orders.csv");
 
-    let order_handler = SyncArbiter::start(DISPENSERS, || OrderHandler {});
+    let point_storage = SyncArbiter::start(1, || PointStorage {});
+
+    let order_handler = SyncArbiter::start(DISPENSERS, move || OrderHandler {
+        point_storage: point_storage.clone(),
+    });
 
     let order_handler_clone = order_handler.clone();
     let order_taker = SyncArbiter::start(1, move || OrderTaker {
         handler: order_handler_clone.clone(),
     });
 
-    order_taker
-        .send(TakeOrders(path))
-        .await
-        .expect("Failed to take orders");
+    order_taker.send(TakeOrders(path)).await?;
 
-    let stop_barrier = Arc::new(Barrier::new(DISPENSERS));
-    for i in 0..DISPENSERS {
+    handle_stop(order_handler, DISPENSERS).await?;
+
+    Ok(())
+}
+
+async fn handle_stop(order_handler: Addr<OrderHandler>, threads: usize) -> Res {
+    let stop_barrier = Arc::new(Barrier::new(threads));
+    for i in 0..threads {
         let stop_barrier = stop_barrier.clone();
         order_handler
             .try_send(WaitStop(Some(stop_barrier)))
@@ -35,7 +41,9 @@ async fn main() {
         println!("Sent stop signal to handler {}", i);
     }
 
-    order_handler.send(WaitStop(None)).await.unwrap();
+    order_handler.send(WaitStop(None)).await?;
+
+    Ok(())
 }
 
 #[cfg(test)]

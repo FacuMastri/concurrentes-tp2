@@ -18,3 +18,12 @@ pub struct HandleOrder(pub Order);
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct WaitStop(pub Option<Arc<Barrier>>);
+
+// Point Storage
+#[derive(Message)]
+#[rtype(result = "Result<(),String>")]
+pub struct UsePoints(pub usize);
+
+#[derive(Message)]
+#[rtype(result = "Result<(),String>")]
+pub struct FillPoints(pub usize);

@@ -19,7 +19,7 @@ impl Order {
     }
 
     pub fn parse(string: String) -> Result<Self, String> {
-        let mut parts = string.split(",");
+        let mut parts = string.split(',');
 
         let customer_name = parts.next().unwrap().to_string();
         let action = parts.next().unwrap().to_string();
