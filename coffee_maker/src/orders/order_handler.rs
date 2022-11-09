@@ -28,7 +28,7 @@ impl OrderHandler {
 
     async fn lock_points(&self, order: Order) -> Result<(), String> {
         self.point_storage
-            .send(LockPoints(order))
+            .send(LockOrder(order))
             .await
             .or(Err("MailboxError".to_string()))??;
         Ok(())
@@ -36,17 +36,17 @@ impl OrderHandler {
 
     async fn free_points(&self, order: Order) -> Result<(), String> {
         self.point_storage
-            .send(FreePoints(order))
+            .send(FreeOrder(order))
             .await
-            .or(Err("MailboxError".to_string()))??;
+            .or(Err("MailboxError"))??;
         Ok(())
     }
 
     async fn commit_points(&self, order: Order) -> Result<(), String> {
         self.point_storage
-            .send(CommitPoints(order))
+            .send(CommitOrder(order))
             .await
-            .or(Err("MailboxError".to_string()))??;
+            .or(Err("MailboxError"))??;
         Ok(())
     }
 

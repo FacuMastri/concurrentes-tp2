@@ -1,23 +1,46 @@
-use std::net::UdpSocket;
+use std::{
+    io::Read,
+    net::{TcpListener, TcpStream},
+    thread::{self, JoinHandle},
+    time::Duration,
+};
 
 #[derive(Debug)]
 pub struct Server {
-    socket: UdpSocket,
+    address: String,
+    listener: TcpListener,
 }
 
 impl Server {
-    pub fn new(ip: String, port: String) -> Server {
-        let address = ip + &port;
-        let socket = UdpSocket::bind(&address).unwrap();
-        println!("Server up at {}", address);
-        Server { socket }
+    pub fn new(address: String) -> Server {
+        let listener = TcpListener::bind(address.clone()).unwrap();
+
+        Server { address, listener }
     }
 
-    pub fn listen(&self) {
-        println!("Listen to new messages...");
-        let mut buf = [0; 1024];
-        let (_, from) = self.socket.recv_from(&mut buf).unwrap();
-        // Aqui deberian llegar paquetes que pidan o saquen puntos.
-        // Armar una seccion critica y/o transacciones quizas.
+    pub fn listen(self) -> JoinHandle<()> {
+        let listener = self.listener.try_clone().unwrap();
+
+        let handle = thread::spawn(move || {
+            println!("Listening on {}", self.address);
+            for stream in listener.incoming() {
+                let stream = stream.unwrap();
+                self.handle_connection(stream);
+            }
+        });
+
+        handle
+    }
+
+    fn handle_connection(&self, mut stream: TcpStream) {
+        let addr = stream.local_addr().unwrap().ip().to_string();
+        println!("Connection established with {}", addr);
+
+        let mut buf = [0; 1];
+
+        while let Ok(_) = stream.read_exact(&mut buf) {
+            println!("Received: {}", buf[0]);
+        }
+        println!("Connection closed with {}", addr);
     }
 }

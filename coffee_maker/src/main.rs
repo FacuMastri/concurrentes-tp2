@@ -26,7 +26,11 @@ fn parse_args() -> (String, String) {
 async fn main() -> Res {
     let (local_server_addr, orders_path) = parse_args();
 
-    let point_storage = SyncArbiter::start(1, move || PointStorage::new(local_server_addr.clone()));
+    let point_storage = SyncArbiter::start(1, move || {
+        PointStorage::new(local_server_addr.clone()).unwrap()
+    });
+
+    print!("Starting {} dispensers...", DISPENSERS);
 
     let order_handler = SyncArbiter::start(DISPENSERS, move || OrderHandler {
         point_storage: point_storage.clone(),

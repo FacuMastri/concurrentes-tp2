@@ -22,12 +22,12 @@ pub struct WaitStop(pub Option<Arc<Barrier>>);
 // Point Storage
 #[derive(Message)]
 #[rtype(result = "Result<(),String>")]
-pub struct LockPoints(pub Order);
+pub struct LockOrder(pub Order);
 
 #[derive(Message)]
 #[rtype(result = "Result<(),String>")]
-pub struct FreePoints(pub Order);
+pub struct FreeOrder(pub Order);
 
 #[derive(Message)]
 #[rtype(result = "Result<(),String>")]
-pub struct CommitPoints(pub Order);
+pub struct CommitOrder(pub Order);

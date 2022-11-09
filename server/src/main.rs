@@ -2,8 +2,10 @@ mod server;
 
 use server::Server;
 fn main() {
-    let server = Server::new("localhost".to_string(), "9000".to_string());
-    server.listen();
+    let server = Server::new("localhost:9099".to_string());
+    let handler = server.listen();
+
+    handler.join().unwrap();
 }
 
 #[cfg(test)]
