@@ -4,11 +4,19 @@ use super::*;
 use actix::prelude::*;
 
 pub struct PointStorage {
+    // local_server
+    // local_points
     //HashMap< id, points >
 }
 
 impl Actor for PointStorage {
     type Context = SyncContext<Self>;
+}
+
+impl PointStorage {
+    pub fn new(local_server_addr: String) -> Self {
+        PointStorage {}
+    }
 }
 
 impl Handler<LockPoints> for PointStorage {

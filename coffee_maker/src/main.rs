@@ -5,15 +5,28 @@ use actix::prelude::*;
 use orders::*;
 
 const DISPENSERS: usize = 3;
+const DEFAULT_ORDERS: &str = "../assets/orders.csv";
 
 // Result with any error
 type Res = Result<(), Box<dyn std::error::Error>>;
 
+fn parse_args() -> (String, String) {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 2 {
+        return (args[1].clone(), DEFAULT_ORDERS.to_string());
+    }
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 {
+        return (args[1].clone(), args[2].clone());
+    }
+    panic!("Usage: coffee_maker <local_server> [<orders>]");
+}
+
 #[actix_rt::main]
 async fn main() -> Res {
-    let path = String::from("../assets/orders.csv");
+    let (local_server_addr, orders_path) = parse_args();
 
-    let point_storage = SyncArbiter::start(1, || PointStorage {});
+    let point_storage = SyncArbiter::start(1, move || PointStorage::new(local_server_addr.clone()));
 
     let order_handler = SyncArbiter::start(DISPENSERS, move || OrderHandler {
         point_storage: point_storage.clone(),
@@ -24,7 +37,7 @@ async fn main() -> Res {
         handler: order_handler_clone.clone(),
     });
 
-    order_taker.send(TakeOrders(path)).await?;
+    order_taker.send(TakeOrders(orders_path)).await?;
 
     handle_stop(order_handler, DISPENSERS).await?;
 
