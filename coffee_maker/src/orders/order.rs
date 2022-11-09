@@ -1,10 +1,10 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderAction {
     UsePoints(usize),
     FillPoints(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Order {
     pub customer_name: String,
     pub action: OrderAction,

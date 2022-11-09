@@ -12,7 +12,7 @@ pub struct TakeOrders(pub FilePath);
 
 // Order Handler
 #[derive(Message)]
-#[rtype(result = "()")]
+#[rtype(result = "Result<(),String>")]
 pub struct HandleOrder(pub Order);
 
 #[derive(Message)]
@@ -22,8 +22,12 @@ pub struct WaitStop(pub Option<Arc<Barrier>>);
 // Point Storage
 #[derive(Message)]
 #[rtype(result = "Result<(),String>")]
-pub struct UsePoints(pub usize);
+pub struct LockPoints(pub Order);
 
 #[derive(Message)]
 #[rtype(result = "Result<(),String>")]
-pub struct FillPoints(pub usize);
+pub struct FreePoints(pub Order);
+
+#[derive(Message)]
+#[rtype(result = "Result<(),String>")]
+pub struct CommitPoints(pub Order);
