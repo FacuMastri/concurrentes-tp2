@@ -2,5 +2,6 @@
 members = [
   "coffee_maker",
   "server",
-  "common/util"
+  "common/util",
+  "common/points"
 ]
