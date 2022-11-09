@@ -30,7 +30,7 @@ impl OrderHandler {
         self.point_storage
             .send(LockOrder(order))
             .await
-            .or(Err("MailboxError".to_string()))??;
+            .map_err(|_| "MailboxError")??;
         Ok(())
     }
 
@@ -38,7 +38,7 @@ impl OrderHandler {
         self.point_storage
             .send(FreeOrder(order))
             .await
-            .or(Err("MailboxError"))??;
+            .map_err(|_| "MailboxError")??;
         Ok(())
     }
 

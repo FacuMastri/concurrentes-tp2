@@ -30,7 +30,7 @@ async fn main() -> Res {
         PointStorage::new(local_server_addr.clone()).unwrap()
     });
 
-    print!("Starting {} dispensers...", DISPENSERS);
+    println!("Starting {} dispensers...", DISPENSERS);
 
     let order_handler = SyncArbiter::start(DISPENSERS, move || OrderHandler {
         point_storage: point_storage.clone(),
