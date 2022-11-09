@@ -1,5 +1,9 @@
+mod server;
+
+use server::Server;
 fn main() {
-    println!("Hello, world!");
+    let server = Server::new("localhost".to_string(), "9000".to_string());
+    server.listen();
 }
 
 #[cfg(test)]
