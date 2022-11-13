@@ -1,3 +1,4 @@
+mod coordinator;
 mod logger;
 mod message;
 mod points;
@@ -25,7 +26,7 @@ fn logger(rx: Receiver<String>) {
 }
 
 fn main() {
-    let points = Points::new();
+    let mut points = Points::new();
     let sock = UdpSocket::bind("localhost:1234").unwrap();
     let mut log = HashMap::new();
     let (tx, rx) = mpsc::channel();
@@ -79,6 +80,11 @@ fn main() {
                 match log.get(&transaction_id) {
                     Some(TransactionState::Accept) => {
                         log.insert(transaction_id, TransactionState::Commit);
+                        if order_type == 0 {
+                            points.add_points(client_id, points_required);
+                        } else {
+                            points.remove_points(client_id, points_required);
+                        }
                         let _ = tx.send("TransactionResponse: Commit".to_string());
                         TransactionResponse::new(transaction_id, TransactionState::Commit)
                     }
@@ -107,7 +113,7 @@ fn main() {
                     }
                     Some(TransactionState::Commit) | None => {
                         println!("{} {:?}", transaction_id, log.get(&transaction_id));
-                        let _ = tx.send("PANICK; TransactionState::Commit cannot be handled by two fase transactionality algorithm".to_string());
+                        let _ = tx.send("PANIC; TransactionState::Commit cannot be handled by two fase transactionality algorithm".to_string());
                         panic!("This cannot be handled by two fase transactionality algorithm!");
                     }
                     _ => panic!("This cannot be handled by two fase transactionality algorithm!"),
