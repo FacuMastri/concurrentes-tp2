@@ -7,4 +7,4 @@ pub use messages::*;
 pub use order_handler::*;
 pub use order_taker::*;
 pub use point_storage::*;
-pub use points::{Order, OrderAction};
+pub use points::{Message as PointMessage, Order, OrderAction};
