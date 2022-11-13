@@ -1,4 +1,3 @@
-mod points;
 mod server;
 
 use server::Server;
