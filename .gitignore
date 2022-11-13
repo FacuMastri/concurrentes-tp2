@@ -1,5 +1,11 @@
+# Rust
 target
 Cargo.lock
 
+# IDEs
+.idea
+.vscode
+
+# Other
 desktop.ini
 .DS_Store
