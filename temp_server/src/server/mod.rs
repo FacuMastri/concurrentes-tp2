@@ -1,7 +1,5 @@
-mod point_storage;
-
 //use point_storage::Points;
-use points::Message;
+use points::{Message, MessageBytes, MESSAGE_BUFFER_SIZE};
 
 use std::{
     net::{SocketAddr, UdpSocket},
@@ -10,7 +8,6 @@ use std::{
 
 #[derive(Debug)]
 pub struct Server {
-    address: String,
     listener: UdpSocket,
     handlers: Vec<JoinHandle<()>>,
     //points: Arc<Mutex<Points>>,
@@ -21,7 +18,6 @@ impl Server {
         let listener = UdpSocket::bind(&address).expect("Failed to bind socket");
 
         Server {
-            address,
             listener,
             handlers: vec![],
             //points: Points::new(),
@@ -45,8 +41,8 @@ impl Server {
         let recv = socket.recv_from(bytes).expect("Failed to receive data");
 
         match recv.0 {
-            11 => {
-                let msg: [u8; 11] = bytes[..11]
+            MESSAGE_BUFFER_SIZE => {
+                let msg: MessageBytes = bytes[..MESSAGE_BUFFER_SIZE]
                     .try_into()
                     .expect("Failed to convert to array . This should never happen");
                 self.handlers
