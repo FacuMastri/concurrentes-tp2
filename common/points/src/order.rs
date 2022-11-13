@@ -6,22 +6,19 @@ pub enum OrderAction {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Order {
-    pub customer_name: String,
+    pub client_id: u16,
     pub action: OrderAction,
 }
 
 impl Order {
-    pub fn new(customer_name: String, action: OrderAction) -> Self {
-        Order {
-            customer_name,
-            action,
-        }
+    pub fn new(client_id: u16, action: OrderAction) -> Self {
+        Order { client_id, action }
     }
 
-    pub fn parse(string: String) -> Result<Self, String> {
-        let mut parts = string.split(',');
+    pub fn parse(line: String) -> Result<Self, String> {
+        let mut parts = line.split(',');
 
-        let customer_name = parts.next().unwrap().to_string();
+        let client_id = parts.next().unwrap().to_string();
         let action = parts.next().unwrap().to_string();
 
         let action = match action.as_str() {
@@ -35,37 +32,33 @@ impl Order {
             }
             _ => return Err("Invalid action".to_string()),
         };
-
-        Ok(Order::new(customer_name, action))
+        Ok(Order::new(client_id.parse::<u16>().unwrap(), action))
     }
 }
 
-// TODO: better use of bytes
-impl From<Order> for [u8; 10] {
-    fn from(order: Order) -> Self {
-        let mut buf = [0; 10];
+pub const ORDER_BUFFER_SIZE: usize = 6;
 
-        let customer_name = order.customer_name.as_bytes();
-        for i in 0..6 {
-            buf[i] = if i < customer_name.len() {
-                customer_name[i]
-            } else {
-                0
-            };
-        }
+// TODO: better use of bytes
+impl From<Order> for [u8; ORDER_BUFFER_SIZE] {
+    fn from(order: Order) -> Self {
+        let mut buf = [0; ORDER_BUFFER_SIZE];
+
+        let client_id = order.client_id;
+        buf[0] = (client_id >> 8) as u8;
+        buf[1] = client_id as u8;
 
         match order.action {
             OrderAction::UsePoints(points) => {
-                buf[6] = 1;
-                buf[7] = (points / 100) as u8;
-                buf[8] = ((points % 100) / 10) as u8;
-                buf[9] = (points % 10) as u8;
+                buf[2] = 1;
+                buf[3] = (points / 100) as u8;
+                buf[4] = ((points % 100) / 10) as u8;
+                buf[5] = (points % 10) as u8;
             }
             OrderAction::FillPoints(points) => {
-                buf[6] = 2;
-                buf[7] = (points / 100) as u8;
-                buf[8] = ((points % 100) / 10) as u8;
-                buf[9] = (points % 10) as u8;
+                buf[2] = 2;
+                buf[3] = (points / 100) as u8;
+                buf[4] = ((points % 100) / 10) as u8;
+                buf[5] = (points % 10) as u8;
             }
         }
 
@@ -73,27 +66,22 @@ impl From<Order> for [u8; 10] {
     }
 }
 
-impl From<[u8; 10]> for Order {
-    fn from(buf: [u8; 10]) -> Self {
-        // first 6 bytes are customer name
-        // next byte is action type
-        // last 3 bytes are points
-        let mut customer_name = String::new();
-        for char in buf.iter().take(6) {
-            if *char != 0 {
-                customer_name.push(*char as char);
-            }
-        }
+impl From<[u8; ORDER_BUFFER_SIZE]> for Order {
+    fn from(buf: [u8; ORDER_BUFFER_SIZE]) -> Self {
+        // First 2 bytes are client id
+        // Next byte is action type
+        // Last 3 bytes are points
+        let client_id = ((buf[0] as u16) << 8) | buf[1] as u16;
 
-        let points = (buf[7] as usize) * 100 + (buf[8] as usize) * 10 + (buf[9] as usize);
+        let points = (buf[3] as usize) * 100 + (buf[4] as usize) * 10 + (buf[5] as usize);
 
-        let action = match buf[6] {
+        let action = match buf[2] {
             1 => OrderAction::UsePoints(points),
             2 => OrderAction::FillPoints(points),
             _ => panic!("Invalid action type"),
         };
 
-        Order::new(customer_name, action)
+        Order::new(client_id, action)
     }
 }
 
@@ -103,20 +91,20 @@ mod tests {
     use super::*;
 
     fn test_order(order: Order) {
-        let buf: [u8; 10] = order.clone().into();
-        let order2 = Order::from(buf);
-        assert_eq!(order, order2);
+        let order_from_buf: [u8; 6] = order.clone().into();
+        let expected_order = Order::from(order_from_buf);
+        assert_eq!(order, expected_order);
     }
 
     #[test]
     fn test_order_use() {
-        let order = Order::new("John".to_string(), OrderAction::UsePoints(123));
+        let order = Order::new(25, OrderAction::UsePoints(123));
         test_order(order);
     }
 
     #[test]
     fn test_order_fill() {
-        let order = Order::new("John".to_string(), OrderAction::FillPoints(123));
+        let order = Order::new(30, OrderAction::FillPoints(123));
         test_order(order);
     }
 }

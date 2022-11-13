@@ -21,11 +21,7 @@ impl Points {
         }
     }
 
-    fn add_points(
-        point_map: &mut PointMap,
-        client_id: String,
-        points: usize,
-    ) -> Result<(), String> {
+    fn add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
         *point_map.entry(client_id).or_insert(0) += points;
         Ok(())
     }
@@ -56,18 +52,20 @@ impl Points {
     }
 
     pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.customer_name;
+        let client_id = order.client_id;
         match order.action {
-            OrderAction::FillPoints(points) => Points::add_points(&mut self.to_fill, name, points),
+            OrderAction::FillPoints(points) => {
+                Points::add_points(&mut self.to_fill, client_id, points)
+            }
             OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.points, name.clone(), points)?;
-                Points::add_points(&mut self.to_use, name, points)
+                Points::remove_points(&mut self.points, client_id.clone(), points)?;
+                Points::add_points(&mut self.to_use, client_id, points)
             }
         }
     }
 
     pub fn free_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.customer_name;
+        let name = order.client_id;
         match order.action {
             OrderAction::FillPoints(points) => {
                 Points::remove_points(&mut self.to_fill, name, points)
@@ -80,7 +78,7 @@ impl Points {
     }
 
     pub fn commit_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.customer_name;
+        let name = order.client_id;
         match order.action {
             OrderAction::FillPoints(points) => {
                 Points::remove_points(&mut self.to_fill, name.clone(), points)?;
@@ -100,7 +98,7 @@ mod test {
         let mut points = Points::new();
         points
             .lock_order(Order {
-                customer_name: "John".to_string(),
+                client_id: "John".to_string(),
                 action: OrderAction::FillPoints(100),
             })
             .unwrap();
