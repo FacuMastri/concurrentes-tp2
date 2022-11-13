@@ -3,7 +3,7 @@ use std::sync::{Arc, Barrier};
 
 use actix::prelude::*;
 use orders::*;
-use tracing::{debug, error, warn, Level};
+use tracing::{debug, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 const DISPENSERS: usize = 3;
