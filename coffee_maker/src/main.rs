@@ -6,6 +6,8 @@ use orders::*;
 
 const DISPENSERS: usize = 3;
 const DEFAULT_ORDERS: &str = "../assets/orders.csv";
+const LOCAL_SERVER: usize = 1;
+const ORDERS: usize = 2;
 
 // Result with any error
 type Res = Result<(), Box<dyn std::error::Error>>;
@@ -13,11 +15,11 @@ type Res = Result<(), Box<dyn std::error::Error>>;
 fn parse_args() -> (String, String) {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 2 {
-        return (args[1].clone(), DEFAULT_ORDERS.to_string());
+        return (args[LOCAL_SERVER].clone(), DEFAULT_ORDERS.to_string());
     }
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 3 {
-        return (args[1].clone(), args[2].clone());
+        return (args[LOCAL_SERVER].clone(), args[ORDERS].clone());
     }
     panic!("Usage: coffee_maker <local_server> [<orders>]");
 }
