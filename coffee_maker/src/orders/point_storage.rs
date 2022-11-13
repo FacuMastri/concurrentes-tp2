@@ -43,6 +43,16 @@ impl PointStorage {
             .map_err(|_| "Could not read from local server")?;
         Ok(buf[0])
     }
+
+    fn send(&mut self, msg: PointMessage) -> Result<(), String> {
+        self.write(msg.into())?;
+        let res = self.read()?;
+        if res == 0 {
+            Err("Local server returned error".to_string())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl Handler<LockOrder> for PointStorage {
@@ -50,9 +60,7 @@ impl Handler<LockOrder> for PointStorage {
 
     fn handle(&mut self, msg: LockOrder, _ctx: &mut SyncContext<Self>) -> Self::Result {
         let msg = PointMessage::LockOrder(msg.0);
-        self.write(msg.into())?;
-        let _res = self.read()?;
-        Ok(())
+        self.send(msg)
     }
 }
 
@@ -61,9 +69,7 @@ impl Handler<FreeOrder> for PointStorage {
 
     fn handle(&mut self, msg: FreeOrder, _ctx: &mut SyncContext<Self>) -> Self::Result {
         let msg = PointMessage::FreeOrder(msg.0);
-        self.write(msg.into())?;
-        let _res = self.read()?;
-        Ok(())
+        self.send(msg)
     }
 }
 
@@ -72,8 +78,6 @@ impl Handler<CommitOrder> for PointStorage {
 
     fn handle(&mut self, msg: CommitOrder, _ctx: &mut SyncContext<Self>) -> Self::Result {
         let msg = PointMessage::CommitOrder(msg.0);
-        self.write(msg.into())?;
-        let _res = self.read()?;
-        Ok(())
+        self.send(msg)
     }
 }
