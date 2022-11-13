@@ -1,7 +1,7 @@
 mod point_storage;
 
 use point_storage::Points;
-use points::Message;
+use points::{Message, MESSAGE_BUFFER_SIZE};
 
 use std::{
     io::{Read, Write},
@@ -55,10 +55,10 @@ impl Server {
         let addr = stream.local_addr().unwrap().ip().to_string();
         println!("Connection established with {}", addr);
 
-        let mut buf = [0; 11];
+        let mut message_buffer = [0; MESSAGE_BUFFER_SIZE];
 
-        while stream.read_exact(&mut buf).is_ok() {
-            let msg = buf.into();
+        while stream.read_exact(&mut message_buffer).is_ok() {
+            let msg = message_buffer.into();
             Self::handle_message(msg, &mut stream, points.clone())
         }
 

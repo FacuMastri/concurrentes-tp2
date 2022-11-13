@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use points::{Order, OrderAction};
 
-type PointMap = HashMap<String, usize>;
+type PointMap = HashMap<u16, usize>;
 
 #[derive(Debug)]
 pub struct Points {
@@ -28,7 +28,7 @@ impl Points {
 
     fn remove_points(
         point_map: &mut PointMap,
-        client_id: String,
+        client_id: u16,
         points: usize,
     ) -> Result<(), String> {
         if !point_map.contains_key(&client_id) {
@@ -42,7 +42,7 @@ impl Points {
         Ok(())
     }
 
-    fn get_points(point_map: &mut PointMap, client_id: String) -> Result<usize, ()> {
+    fn get_points(point_map: &mut PointMap, client_id: u16) -> Result<usize, ()> {
         if !point_map.contains_key(&client_id) {
             Err(())
         } else {
@@ -98,10 +98,10 @@ mod test {
         let mut points = Points::new();
         points
             .lock_order(Order {
-                client_id: "John".to_string(),
+                client_id: 420,
                 action: OrderAction::FillPoints(100),
             })
             .unwrap();
-        assert_eq!(100, *points.to_fill.get("John").unwrap());
+        assert_eq!(100, *points.to_fill.get(&420).unwrap());
     }
 }

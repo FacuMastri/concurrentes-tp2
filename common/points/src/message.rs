@@ -7,7 +7,7 @@ pub enum Message {
     CommitOrder(Order),
 }
 
-const MESSAGE_BUFFER_SIZE: usize = ORDER_BUFFER_SIZE + 1;
+pub const MESSAGE_BUFFER_SIZE: usize = ORDER_BUFFER_SIZE + 1;
 
 impl From<Message> for [u8; MESSAGE_BUFFER_SIZE] {
     fn from(message: Message) -> Self {
