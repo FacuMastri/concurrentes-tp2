@@ -58,33 +58,35 @@ impl Points {
                 Points::add_points(&mut self.to_fill, client_id, points)
             }
             OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.points, client_id.clone(), points)?;
+                Points::remove_points(&mut self.points, client_id, points)?;
                 Points::add_points(&mut self.to_use, client_id, points)
             }
         }
     }
 
     pub fn free_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.client_id;
+        let client_id = order.client_id;
         match order.action {
             OrderAction::FillPoints(points) => {
-                Points::remove_points(&mut self.to_fill, name, points)
+                Points::remove_points(&mut self.to_fill, client_id, points)
             }
             OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.to_use, name.clone(), points)?;
-                Points::add_points(&mut self.points, name, points)
+                Points::remove_points(&mut self.to_use, client_id, points)?;
+                Points::add_points(&mut self.points, client_id, points)
             }
         }
     }
 
     pub fn commit_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.client_id;
+        let client_id = order.client_id;
         match order.action {
             OrderAction::FillPoints(points) => {
-                Points::remove_points(&mut self.to_fill, name.clone(), points)?;
-                Points::add_points(&mut self.points, name, points)
+                Points::remove_points(&mut self.to_fill, client_id, points)?;
+                Points::add_points(&mut self.points, client_id, points)
             }
-            OrderAction::UsePoints(points) => Points::remove_points(&mut self.to_use, name, points),
+            OrderAction::UsePoints(points) => {
+                Points::remove_points(&mut self.to_use, client_id, points)
+            }
         }
     }
 }
