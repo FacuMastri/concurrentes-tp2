@@ -33,7 +33,7 @@ impl From<Vec<u8>> for Message {
         Message {
             transaction_state: v[0].into(),
             transaction_id: be_byte_buffer_to_u64(&v[1..9]),
-            order_type: v[9].into(),
+            order_type: v[9],
             client_id: be_byte_buffer_to_u64(&v[10..18]),
             points: be_byte_buffer_to_u64(&v[18..]),
         }
