@@ -1,5 +1,22 @@
 # Development
 
+## Architecture
+
+![Architecture](assets/arq.png)
+
+- Core Servers:
+  - Store the state of the accounts in a distributed manner
+  - Uses 2 step transactions to ensure consistency
+- Local Servers:
+  - Handle point lock/free/commit requests from coffee machines
+  - Communicate with core servers to update account balance
+  - Can fill points while offline
+- Coffee Machines:
+  - Take orders
+  - Handle orders
+
+## Commands
+
 - `make` in the root directory will run `fmt`, `test` and `clippy` for the target dirs.
 
 # Trabajo Práctico

@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 #[derive(Debug)]
+#[allow(dead_code)] // FIXME
 pub struct Points {
     points: HashMap<String, i32>,
 }
 
+#[allow(dead_code)] // FIXME
 impl Points {
     pub fn new() -> Self {
         let points = HashMap::new();
@@ -29,7 +31,7 @@ impl Points {
 
     pub fn get_points(&self, client_id: String) -> Result<i32, ()> {
         if !self.points.contains_key(&client_id) {
-            return Err(());
+            Err(())
         } else {
             let client_points = self.points.get(&client_id).unwrap();
             Ok(*client_points)
