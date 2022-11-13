@@ -4,6 +4,7 @@ use super::*;
 use actix::prelude::*;
 use futures::executor::block_on;
 use rand::Rng;
+use tracing::debug;
 
 const SUCCESS_CHANCE: f64 = 0.5;
 const ORDER_MILLIS: u64 = 1000;
@@ -77,12 +78,12 @@ impl Handler<WaitStop> for OrderHandler {
     fn handle(&mut self, msg: WaitStop, _ctx: &mut SyncContext<Self>) -> Self::Result {
         match msg.0 {
             Some(barrier) => {
-                println!("Waiting for stop signal...");
+                debug!("Waiting for stop signal...");
                 barrier.wait();
-                println!("Done");
+                debug!("Done");
             }
             None => {
-                println!("Done");
+                debug!("Done");
             }
         }
     }

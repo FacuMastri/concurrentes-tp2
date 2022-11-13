@@ -3,6 +3,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::SystemTime;
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub struct DateTime {
@@ -118,7 +119,7 @@ impl Logger {
                     output = file;
                 }
                 Err(_) => {
-                    println!("voy a panickear");
+                    error!("Panic: Unable to create log file.");
                     panic!();
                 }
             },

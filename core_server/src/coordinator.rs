@@ -8,6 +8,7 @@ use crate::message::Message;
 use crate::TransactionResponse;
 use crate::TransactionState;
 use std::convert::TryInto;
+use tracing::{debug, error};
 
 fn id_to_addr(id: usize) -> String {
     "127.0.0.1:1234".to_owned() + &*id.to_string()
@@ -51,7 +52,7 @@ impl TransactionCoordinator {
         let transaction_id = message.transaction_id;
         self.log
             .insert(message.transaction_id, TransactionState::Wait);
-        println!("[COORDINATOR] prepare {}", message.transaction_id);
+        debug!("[COORDINATOR] prepare {}", message.transaction_id);
         self.broadcast_and_wait(message, TransactionState::Commit)
     }
 
@@ -59,7 +60,7 @@ impl TransactionCoordinator {
         let transaction_id = message.transaction_id;
         self.log
             .insert(message.transaction_id, TransactionState::Commit);
-        println!("[COORDINATOR] commit {}", message.transaction_id);
+        debug!("[COORDINATOR] commit {}", message.transaction_id);
         self.broadcast_and_wait(message, TransactionState::Commit)
     }
 
@@ -67,7 +68,7 @@ impl TransactionCoordinator {
         let transaction_id = message.transaction_id;
         self.log
             .insert(message.transaction_id, TransactionState::Abort);
-        println!("[COORDINATOR] abort {}", message.transaction_id);
+        debug!("[COORDINATOR] abort {}", message.transaction_id);
         !self.broadcast_and_wait(message, TransactionState::Abort)
     }
 
@@ -76,7 +77,7 @@ impl TransactionCoordinator {
         *self.responses.0.lock().unwrap() = vec![None; STAKEHOLDERS];
         let msg: Vec<u8> = message.into();
         for stakeholder in 0..STAKEHOLDERS {
-            println!(
+            debug!(
                 "[COORDINATOR] envio {:?} id {} a {}",
                 msg, transaction_id, stakeholder
             );
@@ -88,7 +89,7 @@ impl TransactionCoordinator {
             |responses| responses.iter().any(Option::is_none),
         );
         if responses.is_err() {
-            println!("[COORDINATOR] timeout {}", transaction_id);
+            error!("[COORDINATOR] timeout {}", transaction_id);
             false
         } else {
             responses
@@ -109,17 +110,17 @@ impl TransactionCoordinator {
 
             match message.transaction_state {
                 TransactionState::Commit => {
-                    println!("[COORDINATOR] recibí COMMIT de {}", id_from);
+                    debug!("[COORDINATOR] recibí COMMIT de {}", id_from);
                     self.responses.0.lock().unwrap()[id_from] = Some(TransactionState::Commit);
                     self.responses.1.notify_all();
                 }
                 TransactionState::Abort => {
-                    println!("[COORDINATOR] recibí ABORT de {}", id_from);
+                    debug!("[COORDINATOR] recibí ABORT de {}", id_from);
                     self.responses.0.lock().unwrap()[id_from] = Some(TransactionState::Abort);
                     self.responses.1.notify_all();
                 }
                 _ => {
-                    println!("[COORDINATOR] ??? {}", id_from);
+                    debug!("[COORDINATOR] ??? {}", id_from);
                 }
             }
         }

@@ -9,6 +9,7 @@ use std::{
     sync::{Arc, Mutex},
     thread::{self, JoinHandle},
 };
+use tracing::{debug, error};
 
 #[derive(Debug)]
 pub struct Server {
@@ -34,7 +35,7 @@ impl Server {
         let listener = self.listener.try_clone().unwrap();
 
         thread::spawn(move || {
-            println!("Listening on {}", self.address);
+            debug!("Listening on {}", self.address);
             for stream in listener.incoming() {
                 let stream = stream.unwrap();
                 self.spawn_connection_handler(stream);
@@ -53,7 +54,7 @@ impl Server {
 
     fn connection_handler(mut stream: TcpStream, points: Arc<Mutex<Points>>) {
         let addr = stream.local_addr().unwrap().ip().to_string();
-        println!("Connection established with {}", addr);
+        debug!("Connection established with {}", addr);
 
         let mut message_buffer = [0; MESSAGE_BUFFER_SIZE];
 
@@ -62,22 +63,22 @@ impl Server {
             Self::handle_message(msg, &mut stream, points.clone())
         }
 
-        println!("Connection closed with {}", addr);
+        debug!("Connection closed with {}", addr);
     }
 
     fn handle_message(msg: Message, stream: &mut TcpStream, points: Arc<Mutex<Points>>) {
         let mut points = points.lock().expect("Failed to lock points");
         let result = match msg {
             Message::LockOrder(order) => {
-                println!("Lock: {:?}", order);
+                debug!("Lock: {:?}", order);
                 points.lock_order(order)
             }
             Message::FreeOrder(order) => {
-                println!("Free: {:?}", order);
+                debug!("Free: {:?}", order);
                 points.free_order(order)
             }
             Message::CommitOrder(order) => {
-                println!("Commit: {:?}", order);
+                debug!("Commit: {:?}", order);
                 points.commit_order(order)
             }
         };
@@ -88,7 +89,7 @@ impl Server {
         };
 
         if response.is_err() {
-            println!("Failed to send response");
+            error!("Failed to send response");
         };
     }
 }

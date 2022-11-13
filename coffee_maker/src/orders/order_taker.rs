@@ -7,6 +7,7 @@ use std::{
 
 use super::*;
 use actix::prelude::*;
+use tracing::info;
 
 pub struct OrderTaker {
     pub handler: Addr<OrderHandler>,
@@ -26,12 +27,12 @@ impl Handler<TakeOrders> for OrderTaker {
 
         for line in reader.lines() {
             if let Ok(order) = Order::parse(line.unwrap()) {
-                println!("Order taken: {:?}", order);
+                info!("Order taken: {:?}", order);
                 self.handler.do_send(HandleOrder(order));
                 thread::sleep(Duration::from_secs(1));
             }
         }
 
-        println!("Done taking orders");
+        info!("Done taking orders");
     }
 }

@@ -16,16 +16,24 @@ use transaction_state::TransactionState;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::thread;
+use tracing::{debug, Level};
+use tracing_subscriber::FmtSubscriber;
 
 fn logger(rx: Receiver<String>) {
     let mut logger = Logger::new("db.log");
     for msg in rx {
-        println!("{}", msg);
+        debug!("{}", msg);
         logger.log(msg);
     }
 }
 
 fn main() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     let mut points = Points::new();
     let sock = UdpSocket::bind("localhost:1234").unwrap();
     let mut log = HashMap::new();
@@ -112,7 +120,7 @@ fn main() {
                         TransactionResponse::new(transaction_id, TransactionState::Abort)
                     }
                     Some(TransactionState::Commit) | None => {
-                        println!("{} {:?}", transaction_id, log.get(&transaction_id));
+                        debug!("{} {:?}", transaction_id, log.get(&transaction_id));
                         let _ = tx.send("PANIC; TransactionState::Commit cannot be handled by two fase transactionality algorithm".to_string());
                         panic!("This cannot be handled by two fase transactionality algorithm!");
                     }
