@@ -1,12 +1,9 @@
 use std::{
     collections::HashMap,
-    net::{SocketAddr, ToSocketAddrs, UdpSocket},
     sync::{Arc, Mutex},
 };
 
 use points::{Message, Order, OrderAction};
-
-use crate::server;
 
 type PointMap = HashMap<String, usize>;
 
@@ -15,32 +12,14 @@ pub struct Points {
     points: PointMap,
     to_use: PointMap,
     to_fill: PointMap,
-    socket: UdpSocket,
-    server: SocketAddr,
 }
 
 impl Points {
-    pub fn new(_core_server_addr: String) -> Arc<Mutex<Self>> {
-        let socket = UdpSocket::bind("localhost:0").expect("Failed to bind UDP socket");
-
-        socket
-            .set_read_timeout(Some(std::time::Duration::from_millis(1000)))
-            .expect("Failed to set read timeout");
-
-        let servers: Vec<SocketAddr> = "localhost:9015"
-            .to_socket_addrs()
-            .expect("Invalid Address")
-            .collect();
-        let server = servers[0];
-
-        println!("Core at {:?}", server);
-
+    pub fn new() -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Points {
             points: PointMap::new(),
             to_use: PointMap::new(),
             to_fill: PointMap::new(),
-            socket,
-            server,
         }))
     }
 
@@ -114,8 +93,6 @@ impl Points {
     }
 
     pub fn handle_message(&mut self, msg: Message) -> Result<(), String> {
-        self.send_message(msg.clone())?;
-
         match msg {
             Message::LockOrder(order) => {
                 println!("Lock: {:?}", order);
@@ -131,22 +108,6 @@ impl Points {
             }
         }
     }
-
-    fn send_message(&self, msg: Message) -> Result<(), String> {
-        let msg_bytes: [u8; 11] = msg.into();
-        self.socket
-            .send_to(&msg_bytes, self.server)
-            .map_err(|_| "Failed to send message")?;
-
-        let mut buf = [0; 1];
-        self.socket
-            .recv(&mut buf)
-            .map_err(|_| "Failed to receive message")?;
-
-        println!("Received: {:?}", buf);
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -155,7 +116,7 @@ mod test {
 
     #[test]
     fn lock_fill_points() {
-        let points = Points::new("".to_string());
+        let points = Points::new();
         let mut points = points.lock().unwrap();
         points
             .lock_order(Order {

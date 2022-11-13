@@ -1,8 +1,18 @@
 mod server;
 
 use server::Server;
+
+fn parse_args() -> String {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 2 {
+        return args[1].clone();
+    }
+    panic!("Usage: local_server <core_server>");
+}
+
 fn main() {
-    let server = Server::new("localhost:9099".to_string());
+    let core_server_addr = parse_args();
+    let server = Server::new("localhost:9099".to_string(), core_server_addr);
     let handler = server.listen();
 
     handler.join().unwrap();

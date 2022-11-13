@@ -19,14 +19,14 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(address: String) -> Server {
+    pub fn new(address: String, core_server_addr: String) -> Server {
         let listener = TcpListener::bind(address.clone()).unwrap();
 
         Server {
             address,
             listener,
             handlers: vec![],
-            points: Points::new(),
+            points: Points::new(core_server_addr),
         }
     }
 
@@ -71,7 +71,10 @@ impl Server {
 
         let response = match result {
             Ok(()) => stream.write_all(&[1]),
-            Err(_) => stream.write_all(&[0]),
+            Err(err) => {
+                println!("Error: {}", err);
+                stream.write_all(&[0])
+            }
         };
 
         if response.is_err() {
