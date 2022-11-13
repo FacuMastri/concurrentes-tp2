@@ -1,12 +1,8 @@
-use std::any::Any;
-use std::collections::{HashMap, HashSet};
-use std::io::{BufRead, BufReader, Write};
-use std::mem::size_of;
-use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::collections::HashMap;
+use std::net::UdpSocket;
 use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
 use std::time::Duration;
-use std::{io, thread};
 
 use crate::message::Message;
 use crate::TransactionResponse;
@@ -56,7 +52,7 @@ impl TransactionCoordinator {
         self.log
             .insert(message.transaction_id, TransactionState::Wait);
         println!("[COORDINATOR] prepare {}", message.transaction_id);
-        self.broadcast_and_wait(message, transaction_id, TransactionState::Commit)
+        self.broadcast_and_wait(message, TransactionState::Commit)
     }
 
     fn commit(&mut self, message: Message) -> bool {
@@ -64,7 +60,7 @@ impl TransactionCoordinator {
         self.log
             .insert(message.transaction_id, TransactionState::Commit);
         println!("[COORDINATOR] commit {}", message.transaction_id);
-        self.broadcast_and_wait(message, transaction_id, TransactionState::Commit)
+        self.broadcast_and_wait(message, TransactionState::Commit)
     }
 
     fn abort(&mut self, message: Message) -> bool {
@@ -72,10 +68,10 @@ impl TransactionCoordinator {
         self.log
             .insert(message.transaction_id, TransactionState::Abort);
         println!("[COORDINATOR] abort {}", message.transaction_id);
-        !self.broadcast_and_wait(message, transaction_id, TransactionState::Abort)
+        !self.broadcast_and_wait(message, TransactionState::Abort)
     }
 
-    fn broadcast_and_wait(&self, message: Message, t: u64, expected: TransactionState) -> bool {
+    fn broadcast_and_wait(&self, message: Message, expected: TransactionState) -> bool {
         let transaction_id = message.transaction_id;
         *self.responses.0.lock().unwrap() = vec![None; STAKEHOLDERS];
         let msg: Vec<u8> = message.into();
