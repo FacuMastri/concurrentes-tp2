@@ -1,7 +1,7 @@
 mod point_storage;
 
 use point_storage::Points;
-use points::Message;
+use points::{Message, MESSAGE_BUFFER_SIZE};
 
 use std::{
     io::{Read, Write},
@@ -9,6 +9,7 @@ use std::{
     sync::{Arc, Mutex},
     thread::{self, JoinHandle},
 };
+use tracing::{debug, error};
 
 #[derive(Debug)]
 pub struct Server {
@@ -34,7 +35,7 @@ impl Server {
         let listener = self.listener.try_clone().unwrap();
 
         thread::spawn(move || {
-            println!("Listening on {}", self.address);
+            debug!("Listening on {}", self.address);
             for stream in listener.incoming() {
                 let stream = stream.unwrap();
                 self.spawn_connection_handler(stream);
@@ -53,16 +54,16 @@ impl Server {
 
     fn connection_handler(mut stream: TcpStream, points: Arc<Mutex<Points>>) {
         let addr = stream.local_addr().unwrap().ip().to_string();
-        println!("Connection established with {}", addr);
+        debug!("Connection established with {}", addr);
 
-        let mut buf = [0; 11];
+        let mut message_buffer = [0; MESSAGE_BUFFER_SIZE];
 
-        while stream.read_exact(&mut buf).is_ok() {
-            let msg = buf.into();
+        while stream.read_exact(&mut message_buffer).is_ok() {
+            let msg = message_buffer.into();
             Self::handle_message(msg, &mut stream, points.clone())
         }
 
-        println!("Connection closed with {}", addr);
+        debug!("Connection closed with {}", addr);
     }
 
     fn handle_message(msg: Message, stream: &mut TcpStream, points: Arc<Mutex<Points>>) {
@@ -78,7 +79,7 @@ impl Server {
         };
 
         if response.is_err() {
-            println!("Failed to send response");
+            error!("Failed to send response");
         };
     }
 }

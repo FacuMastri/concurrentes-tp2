@@ -2,7 +2,7 @@ const PREPARE: u8 = 0x0;
 const COMMIT: u8 = 0x1;
 const ABORT: u8 = 0x2;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TransactionState {
     Wait, // este es estado interno, no se envia por socket
     Prepare,

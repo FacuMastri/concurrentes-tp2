@@ -1,6 +1,8 @@
 mod server;
 
 use server::Server;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 fn parse_args() -> String {
     let args: Vec<String> = std::env::args().collect();
@@ -11,6 +13,12 @@ fn parse_args() -> String {
 }
 
 fn main() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     let core_server_addr = parse_args();
     let server = Server::new("localhost:9099".to_string(), core_server_addr);
     let handler = server.listen();

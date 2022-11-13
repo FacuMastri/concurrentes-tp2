@@ -4,11 +4,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use points::{Message, Order, OrderAction};
+use points::{Message, MessageBytes, Order, OrderAction};
 
-use crate::server;
-
-type PointMap = HashMap<String, usize>;
+type PointMap = HashMap<u16, usize>;
 
 #[derive(Debug)]
 pub struct Points {
@@ -44,18 +42,14 @@ impl Points {
         }))
     }
 
-    fn add_points(
-        point_map: &mut PointMap,
-        client_id: String,
-        points: usize,
-    ) -> Result<(), String> {
+    fn add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
         *point_map.entry(client_id).or_insert(0) += points;
         Ok(())
     }
 
     fn remove_points(
         point_map: &mut PointMap,
-        client_id: String,
+        client_id: u16,
         points: usize,
     ) -> Result<(), String> {
         if !point_map.contains_key(&client_id) {
@@ -69,7 +63,7 @@ impl Points {
         Ok(())
     }
 
-    /*fn get_points(point_map: &mut PointMap, client_id: String) -> Result<usize, ()> {
+    /*fn get_points(point_map: &mut PointMap, client_id: u16) -> Result<usize, ()> {
         if !point_map.contains_key(&client_id) {
             Err(())
         } else {
@@ -79,37 +73,41 @@ impl Points {
     }*/
 
     pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.customer_name;
+        let client_id = order.client_id;
         match order.action {
-            OrderAction::FillPoints(points) => Points::add_points(&mut self.to_fill, name, points),
+            OrderAction::FillPoints(points) => {
+                Points::add_points(&mut self.to_fill, client_id, points)
+            }
             OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.points, name.clone(), points)?;
-                Points::add_points(&mut self.to_use, name, points)
+                Points::remove_points(&mut self.points, client_id, points)?;
+                Points::add_points(&mut self.to_use, client_id, points)
             }
         }
     }
 
     pub fn free_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.customer_name;
+        let client_id = order.client_id;
         match order.action {
             OrderAction::FillPoints(points) => {
-                Points::remove_points(&mut self.to_fill, name, points)
+                Points::remove_points(&mut self.to_fill, client_id, points)
             }
             OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.to_use, name.clone(), points)?;
-                Points::add_points(&mut self.points, name, points)
+                Points::remove_points(&mut self.to_use, client_id, points)?;
+                Points::add_points(&mut self.points, client_id, points)
             }
         }
     }
 
     pub fn commit_order(&mut self, order: Order) -> Result<(), String> {
-        let name = order.customer_name;
+        let client_id = order.client_id;
         match order.action {
             OrderAction::FillPoints(points) => {
-                Points::remove_points(&mut self.to_fill, name.clone(), points)?;
-                Points::add_points(&mut self.points, name, points)
+                Points::remove_points(&mut self.to_fill, client_id, points)?;
+                Points::add_points(&mut self.points, client_id, points)
             }
-            OrderAction::UsePoints(points) => Points::remove_points(&mut self.to_use, name, points),
+            OrderAction::UsePoints(points) => {
+                Points::remove_points(&mut self.to_use, client_id, points)
+            }
         }
     }
 
@@ -133,7 +131,7 @@ impl Points {
     }
 
     fn send_message(&self, msg: Message) -> Result<(), String> {
-        let msg_bytes: [u8; 11] = msg.into();
+        let msg_bytes: MessageBytes = msg.into();
         self.socket
             .send_to(&msg_bytes, self.server)
             .map_err(|_| "Failed to send message")?;
@@ -159,10 +157,10 @@ mod test {
         let mut points = points.lock().unwrap();
         points
             .lock_order(Order {
-                customer_name: "John".to_string(),
+                client_id: 420,
                 action: OrderAction::FillPoints(100),
             })
             .unwrap();
-        assert_eq!(100, *points.to_fill.get("John").unwrap());
+        assert_eq!(100, *points.to_fill.get(&420).unwrap());
     }
 }

@@ -3,6 +3,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::SystemTime;
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub struct DateTime {
@@ -66,7 +67,7 @@ impl fmt::Display for Date {
 
 // Convert epoch seconds into date time.
 fn seconds_to_datetime(ts: i64, tm: &mut DateTime) {
-    let leapyear = |year| -> bool { year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) };
+    let is_leap_year = |year| -> bool { year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) };
     static MONTHS: [[i64; 12]; 2] = [
         [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
         [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
@@ -78,7 +79,7 @@ fn seconds_to_datetime(ts: i64, tm: &mut DateTime) {
     tm.min = ((dayclock % 3600) / 60) as i32;
     tm.hour = (dayclock / 3600) as i32;
     loop {
-        let yearsize = if leapyear(year) { 366 } else { 365 };
+        let yearsize = if is_leap_year(year) { 366 } else { 365 };
         if dayno >= yearsize {
             dayno -= yearsize;
             year += 1;
@@ -88,8 +89,8 @@ fn seconds_to_datetime(ts: i64, tm: &mut DateTime) {
     }
     tm.year = year as i32;
     let mut mon = 0;
-    while dayno >= MONTHS[if leapyear(year) { 1 } else { 0 }][mon] {
-        dayno -= MONTHS[if leapyear(year) { 1 } else { 0 }][mon];
+    while dayno >= MONTHS[usize::from(is_leap_year(year))][mon] {
+        dayno -= MONTHS[usize::from(is_leap_year(year))][mon];
         mon += 1;
     }
     tm.month = mon as i32 + 1;
@@ -118,7 +119,7 @@ impl Logger {
                     output = file;
                 }
                 Err(_) => {
-                    println!("voy a panickear");
+                    error!("Panic: Unable to create log file.");
                     panic!();
                 }
             },
