@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![Architecture](assets/arq.png)
+<div valign="center" align="center"><img src="assets/arq.png" alt="Architecture" /></div>
 
 - Core Servers:
   - Store the state of the accounts in a distributed manner
