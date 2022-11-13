@@ -8,8 +8,11 @@ use tracing_subscriber::FmtSubscriber;
 
 const DISPENSERS: usize = 3;
 const DEFAULT_ORDERS: &str = "../assets/orders.csv";
-const LOCAL_SERVER: usize = 1;
-const ORDERS: usize = 2;
+
+enum Arguments {
+    LocalServer = 1,
+    Orders,
+}
 
 // Result with any error
 type Res = Result<(), Box<dyn std::error::Error>>;
@@ -17,11 +20,17 @@ type Res = Result<(), Box<dyn std::error::Error>>;
 fn parse_args() -> (String, String) {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 2 {
-        return (args[LOCAL_SERVER].clone(), DEFAULT_ORDERS.to_string());
+        return (
+            args[Arguments::LocalServer as usize].clone(),
+            DEFAULT_ORDERS.to_string(),
+        );
     }
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 3 {
-        return (args[LOCAL_SERVER].clone(), args[ORDERS].clone());
+        return (
+            args[Arguments::LocalServer as usize].clone(),
+            args[Arguments::Orders as usize].clone(),
+        );
     }
     warn!("Usage: coffee_maker <local_server> [<orders>]");
     panic!()
