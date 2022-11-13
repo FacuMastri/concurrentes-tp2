@@ -1,6 +1,9 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-use points::{Order, OrderAction};
+use points::{Message, Order, OrderAction};
 
 type PointMap = HashMap<String, usize>;
 
@@ -11,14 +14,13 @@ pub struct Points {
     to_fill: PointMap,
 }
 
-#[allow(dead_code)] // FIXME
 impl Points {
-    pub fn new() -> Self {
-        Points {
+    pub fn new() -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Points {
             points: PointMap::new(),
             to_use: PointMap::new(),
             to_fill: PointMap::new(),
-        }
+        }))
     }
 
     fn add_points(
@@ -46,14 +48,14 @@ impl Points {
         Ok(())
     }
 
-    fn get_points(point_map: &mut PointMap, client_id: String) -> Result<usize, ()> {
+    /*fn get_points(point_map: &mut PointMap, client_id: String) -> Result<usize, ()> {
         if !point_map.contains_key(&client_id) {
             Err(())
         } else {
             let client_points = point_map.get(&client_id).unwrap();
             Ok(*client_points)
         }
-    }
+    }*/
 
     pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
         let name = order.customer_name;
@@ -89,6 +91,23 @@ impl Points {
             OrderAction::UsePoints(points) => Points::remove_points(&mut self.to_use, name, points),
         }
     }
+
+    pub fn handle_message(&mut self, msg: Message) -> Result<(), String> {
+        match msg {
+            Message::LockOrder(order) => {
+                println!("Lock: {:?}", order);
+                self.lock_order(order)
+            }
+            Message::FreeOrder(order) => {
+                println!("Free: {:?}", order);
+                self.free_order(order)
+            }
+            Message::CommitOrder(order) => {
+                println!("Commit: {:?}", order);
+                self.commit_order(order)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -97,7 +116,8 @@ mod test {
 
     #[test]
     fn lock_fill_points() {
-        let mut points = Points::new();
+        let points = Points::new();
+        let mut points = points.lock().unwrap();
         points
             .lock_order(Order {
                 customer_name: "John".to_string(),
