@@ -49,7 +49,6 @@ impl TransactionCoordinator {
     }
 
     fn prepare(&mut self, message: Message) -> bool {
-        let transaction_id = message.transaction_id;
         self.log
             .insert(message.transaction_id, TransactionState::Wait);
         debug!("[COORDINATOR] prepare {}", message.transaction_id);
@@ -57,7 +56,6 @@ impl TransactionCoordinator {
     }
 
     fn commit(&mut self, message: Message) -> bool {
-        let transaction_id = message.transaction_id;
         self.log
             .insert(message.transaction_id, TransactionState::Commit);
         debug!("[COORDINATOR] commit {}", message.transaction_id);
@@ -65,7 +63,6 @@ impl TransactionCoordinator {
     }
 
     fn abort(&mut self, message: Message) -> bool {
-        let transaction_id = message.transaction_id;
         self.log
             .insert(message.transaction_id, TransactionState::Abort);
         debug!("[COORDINATOR] abort {}", message.transaction_id);
@@ -78,7 +75,7 @@ impl TransactionCoordinator {
         let msg: Vec<u8> = message.into();
         for stakeholder in 0..STAKEHOLDERS {
             debug!(
-                "[COORDINATOR] envio {:?} id {} a {}",
+                "[COORDINATOR] Envió {:?} id {} a {}",
                 msg, transaction_id, stakeholder
             );
             self.socket.send_to(&msg, id_to_addr(stakeholder)).unwrap();
@@ -103,7 +100,7 @@ impl TransactionCoordinator {
     fn responder(&mut self) {
         loop {
             let mut buf = [0; 26];
-            let (size, from) = self.socket.recv_from(&mut buf).unwrap();
+            let (_size, _from) = self.socket.recv_from(&mut buf).unwrap();
             let id_from = usize::from_le_bytes(buf[1..].try_into().unwrap());
             let message: Vec<u8> = buf.into();
             let message: TransactionResponse = message.into();
