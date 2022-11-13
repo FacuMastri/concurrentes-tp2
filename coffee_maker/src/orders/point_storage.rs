@@ -6,6 +6,7 @@ use std::{
 
 use super::*;
 use actix::prelude::*;
+use points::MESSAGE_BUFFER_SIZE;
 
 const READ_TIMEOUT: u64 = 1000;
 
@@ -29,7 +30,7 @@ impl PointStorage {
         Ok(PointStorage { local_server })
     }
 
-    fn write(&mut self, buf: [u8; 11]) -> Result<(), String> {
+    fn write(&mut self, buf: [u8; MESSAGE_BUFFER_SIZE]) -> Result<(), String> {
         self.local_server
             .write_all(&buf)
             .or(Err("Could not write to local server"))?;
