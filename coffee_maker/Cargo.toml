@@ -11,4 +11,5 @@ futures = "0.3"
 actix = "0.11.0"
 actix-rt = "2.2"
 points = {path="../common/points"}
+log = "0.4.17"
 
