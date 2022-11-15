@@ -73,7 +73,7 @@ impl Server {
         let response = match result {
             Ok(()) => stream.write_all(&[1]),
             Err(err) => {
-                println!("Error: {}", err);
+                error!("Error: {}", err);
                 stream.write_all(&[0])
             }
         };

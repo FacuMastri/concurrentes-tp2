@@ -12,12 +12,16 @@ fn parse_args() -> String {
     panic!("Usage: local_server <core_server>");
 }
 
-fn main() {
+fn init_logger() {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::TRACE)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+}
+
+fn main() {
+    init_logger();
 
     let core_server_addr = parse_args();
     let server = Server::new("localhost:9099".to_string(), core_server_addr);

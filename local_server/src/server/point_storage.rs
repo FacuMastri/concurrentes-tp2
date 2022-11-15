@@ -31,8 +31,6 @@ impl Points {
             .collect();
         let server = servers[0];
 
-        println!("Core at {:?}", server);
-
         Arc::new(Mutex::new(Points {
             points: PointMap::new(),
             to_use: PointMap::new(),
@@ -115,18 +113,9 @@ impl Points {
         self.send_message(msg.clone())?;
 
         match msg {
-            Message::LockOrder(order) => {
-                println!("Lock: {:?}", order);
-                self.lock_order(order)
-            }
-            Message::FreeOrder(order) => {
-                println!("Free: {:?}", order);
-                self.free_order(order)
-            }
-            Message::CommitOrder(order) => {
-                println!("Commit: {:?}", order);
-                self.commit_order(order)
-            }
+            Message::LockOrder(order) => self.lock_order(order),
+            Message::FreeOrder(order) => self.free_order(order),
+            Message::CommitOrder(order) => self.commit_order(order),
         }
     }
 
@@ -140,8 +129,6 @@ impl Points {
         self.socket
             .recv(&mut buf)
             .map_err(|_| "Failed to receive message")?;
-
-        println!("Received: {:?}", buf);
 
         Ok(())
     }
