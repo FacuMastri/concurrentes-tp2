@@ -1,10 +1,12 @@
 use std::{
-    collections::HashMap,
-    net::{SocketAddr, ToSocketAddrs, UdpSocket},
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
-use points::{Message, MessageBytes, Order, OrderAction};
+use points::{Message as ClientMessage, Order, OrderAction};
+
+use super::message::{connect_to, spread_connect_to, ConnectReq, ConnectRes};
+use tracing::{debug, error};
 
 type PointMap = HashMap<u16, usize>;
 
@@ -13,30 +15,27 @@ pub struct Points {
     points: PointMap,
     to_use: PointMap,
     to_fill: PointMap,
-    socket: UdpSocket,
-    server: SocketAddr,
+    servers: HashSet<String>,
+    my_addr: String,
 }
 
 impl Points {
-    pub fn new(_core_server_addr: String) -> Arc<Mutex<Self>> {
-        let socket = UdpSocket::bind("localhost:0").expect("Failed to bind UDP socket");
+    pub fn new(self_addr: String, server_addr: Option<String>) -> Arc<Mutex<Self>> {
+        let mut servers = HashSet::new();
 
-        socket
-            .set_read_timeout(Some(std::time::Duration::from_millis(1000)))
-            .expect("Failed to set read timeout");
-
-        let servers: Vec<SocketAddr> = "localhost:9015"
-            .to_socket_addrs()
-            .expect("Invalid Address")
-            .collect();
-        let server = servers[0];
+        if let Some(addr) = server_addr {
+            let _servers = connect_to(&self_addr, &addr).unwrap();
+            servers.extend(_servers);
+        } else {
+            servers.insert(self_addr.clone());
+        }
 
         Arc::new(Mutex::new(Points {
             points: PointMap::new(),
             to_use: PointMap::new(),
             to_fill: PointMap::new(),
-            socket,
-            server,
+            servers,
+            my_addr: self_addr,
         }))
     }
 
@@ -60,15 +59,6 @@ impl Points {
         point_map.entry(client_id).and_modify(|e| *e -= points);
         Ok(())
     }
-
-    /*fn get_points(point_map: &mut PointMap, client_id: u16) -> Result<usize, ()> {
-        if !point_map.contains_key(&client_id) {
-            Err(())
-        } else {
-            let client_points = point_map.get(&client_id).unwrap();
-            Ok(*client_points)
-        }
-    }*/
 
     pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
         let client_id = order.client_id;
@@ -109,26 +99,46 @@ impl Points {
         }
     }
 
-    pub fn handle_message(&mut self, msg: Message) -> Result<(), String> {
-        self.send_message(msg.clone())?;
-
+    pub fn handle_message(&mut self, msg: ClientMessage) -> Result<(), String> {
         match msg {
-            Message::LockOrder(order) => self.lock_order(order),
-            Message::FreeOrder(order) => self.free_order(order),
-            Message::CommitOrder(order) => self.commit_order(order),
+            ClientMessage::LockOrder(order) => self.lock_order(order),
+            ClientMessage::FreeOrder(order) => self.free_order(order),
+            ClientMessage::CommitOrder(order) => self.commit_order(order),
         }
     }
 
-    fn send_message(&self, msg: Message) -> Result<(), String> {
-        let msg_bytes: MessageBytes = msg.into();
-        self.socket
-            .send_to(&msg_bytes, self.server)
-            .map_err(|_| "Failed to send message")?;
+    pub fn add_connection(&mut self, req: ConnectReq) -> Result<Option<ConnectRes>, String> {
+        debug!("Adding connection: {:?}", &req.addr);
 
-        let mut buf = [0; 1];
-        self.socket
-            .recv(&mut buf)
-            .map_err(|_| "Failed to receive message")?;
+        if !req.copy {
+            self.spread_connection(req.addr.clone())?;
+        }
+
+        self.servers.insert(req.addr);
+
+        let res = ConnectRes {
+            servers: self.servers.clone(),
+        };
+
+        if req.copy {
+            Ok(None)
+        } else {
+            Ok(Some(res))
+        }
+    }
+
+    pub fn spread_connection(&mut self, addr: String) -> Result<(), String> {
+        for server in &self.servers {
+            if server == &addr {
+                continue;
+            }
+            if server == &self.my_addr {
+                continue;
+            }
+            if spread_connect_to(&addr, server).is_err() {
+                error!("Failed to spread connection to {}", server);
+            }
+        }
 
         Ok(())
     }
@@ -140,7 +150,7 @@ mod test {
 
     #[test]
     fn lock_fill_points() {
-        let points = Points::new("".to_string());
+        let points = Points::new("Me".to_string(), None);
         let mut points = points.lock().unwrap();
         points
             .lock_order(Order {
