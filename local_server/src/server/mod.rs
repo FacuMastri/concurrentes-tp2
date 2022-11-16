@@ -5,12 +5,14 @@ use point_storage::Points;
 use points::{Message, CLIENT_CONNECTION, MESSAGE_BUFFER_SIZE, SERVER_MESSAGE};
 
 use std::{
-    io::{BufRead, BufReader, BufWriter, Read, Write},
+    io::{Read, Write},
     net::{TcpListener, TcpStream},
     sync::{Arc, Mutex},
     thread::{self, JoinHandle},
 };
 use tracing::{debug, error};
+
+use crate::server::message::{receive, respond};
 
 use self::message::{ConnectReq, CONNECT};
 
@@ -125,31 +127,19 @@ impl Server {
     }
 
     fn handle_server_connection(
-        stream: TcpStream,
+        mut stream: TcpStream,
         points: Arc<Mutex<Points>>,
     ) -> Result<(), String> {
-        let mut buf = String::new();
-        let mut reader = BufReader::new(stream.try_clone().unwrap());
-        let mut writer = BufWriter::new(stream.try_clone().unwrap());
+        let res = receive(&mut stream);
 
-        reader
-            .read_line(&mut buf)
-            .map_err(|_| "Failed to read line")?;
-        let req: ConnectReq = serde_json::from_str(&buf).map_err(|_| "Failed to parse json")?;
+        let req: ConnectReq =
+            serde_json::from_slice(&res).map_err(|_| "Failed to parse connect req")?;
 
         let mut points = points.lock().unwrap();
 
         debug!("Connect {:?}", req.addr);
         let res = points.add_connection(req)?;
 
-        if let Some(res) = res {
-            debug!("Responding {:?}", res);
-            let res = serde_json::to_string(&res).map_err(|e| e.to_string())?;
-            let res = res.as_bytes();
-
-            writer.write_all(res).map_err(|e| e.to_string())?;
-            writer.flush().unwrap();
-        }
-        Ok(())
+        respond(&mut stream, res)
     }
 }

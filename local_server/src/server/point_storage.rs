@@ -107,7 +107,7 @@ impl Points {
         }
     }
 
-    pub fn add_connection(&mut self, req: ConnectReq) -> Result<Option<ConnectRes>, String> {
+    pub fn add_connection(&mut self, req: ConnectReq) -> Result<String, String> {
         debug!("Adding connection: {:?}", &req.addr);
 
         if !req.copy {
@@ -121,9 +121,9 @@ impl Points {
         };
 
         if req.copy {
-            Ok(None)
+            Ok(String::from(""))
         } else {
-            Ok(Some(res))
+            serde_json::to_string(&res).map_err(|e| e.to_string())
         }
     }
 
