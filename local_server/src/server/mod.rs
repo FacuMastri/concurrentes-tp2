@@ -12,9 +12,9 @@ use std::{
 };
 use tracing::{debug, error};
 
-use crate::server::message::{receive, respond};
+use crate::server::message::{receive, respond, SyncReq};
 
-use self::message::{ConnectReq, CONNECT};
+use self::message::{ConnectReq, CONNECT, SYNC};
 
 #[derive(Debug)]
 pub struct Server {
@@ -118,6 +118,7 @@ impl Server {
 
         let res = match buf[0] {
             CONNECT => Self::handle_server_connection(stream, points),
+            SYNC => Self::handle_server_sync(stream, points),
             _ => Err("Unknown message type".to_string()),
         };
 
@@ -130,7 +131,7 @@ impl Server {
         mut stream: TcpStream,
         points: Arc<Mutex<Points>>,
     ) -> Result<(), String> {
-        let res = receive(&mut stream);
+        let res = receive(&mut stream)?;
 
         let req: ConnectReq =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse connect req")?;
@@ -139,6 +140,20 @@ impl Server {
 
         debug!("Connect {:?}", req.addr);
         let res = points.add_connection(req)?;
+
+        respond(&mut stream, res)
+    }
+
+    fn handle_server_sync(mut stream: TcpStream, points: Arc<Mutex<Points>>) -> Result<(), String> {
+        let res = receive(&mut stream)?;
+
+        let req: SyncReq =
+            serde_json::from_slice(&res).map_err(|_| "Failed to parse connect req")?;
+
+        let points = points.lock().unwrap();
+
+        debug!("Send Sync");
+        let res = points.sync(req)?;
 
         respond(&mut stream, res)
     }

@@ -5,16 +5,16 @@ use std::{
 
 use points::{Message as ClientMessage, Order, OrderAction};
 
-use super::message::{connect_to, spread_connect_to, ConnectReq, ConnectRes};
+use super::message::{
+    connect_to, spread_connect_to, sync_with, ConnectReq, ConnectRes, SyncReq, SyncRes,
+};
 use tracing::{debug, error};
 
-type PointMap = HashMap<u16, usize>;
+pub type PointMap = HashMap<u16, usize>;
 
 #[derive(Debug)]
 pub struct Points {
-    points: PointMap,
-    to_use: PointMap,
-    to_fill: PointMap,
+    pub points: PointMap,
     servers: HashSet<String>,
     my_addr: String,
 }
@@ -22,29 +22,28 @@ pub struct Points {
 impl Points {
     pub fn new(self_addr: String, server_addr: Option<String>) -> Arc<Mutex<Self>> {
         let mut servers = HashSet::new();
+        let mut points = PointMap::new();
 
         if let Some(addr) = server_addr {
-            let _servers = connect_to(&self_addr, &addr).unwrap();
-            servers.extend(_servers);
+            servers = connect_to(&self_addr, &addr).unwrap();
+            points = sync_with(&addr).unwrap();
         } else {
             servers.insert(self_addr.clone());
         }
 
         Arc::new(Mutex::new(Points {
-            points: PointMap::new(),
-            to_use: PointMap::new(),
-            to_fill: PointMap::new(),
+            points,
             servers,
             my_addr: self_addr,
         }))
     }
 
-    fn add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
+    fn _add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
         *point_map.entry(client_id).or_insert(0) += points;
         Ok(())
     }
 
-    fn remove_points(
+    fn _remove_points(
         point_map: &mut PointMap,
         client_id: u16,
         points: usize,
@@ -61,41 +60,26 @@ impl Points {
     }
 
     pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
-        let client_id = order.client_id;
+        let _client_id = order.client_id;
         match order.action {
-            OrderAction::FillPoints(points) => {
-                Points::add_points(&mut self.to_fill, client_id, points)
-            }
-            OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.points, client_id, points)?;
-                Points::add_points(&mut self.to_use, client_id, points)
-            }
+            OrderAction::FillPoints(_points) => Ok(()),
+            OrderAction::UsePoints(_points) => Ok(()),
         }
     }
 
     pub fn free_order(&mut self, order: Order) -> Result<(), String> {
-        let client_id = order.client_id;
+        let _client_id = order.client_id;
         match order.action {
-            OrderAction::FillPoints(points) => {
-                Points::remove_points(&mut self.to_fill, client_id, points)
-            }
-            OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.to_use, client_id, points)?;
-                Points::add_points(&mut self.points, client_id, points)
-            }
+            OrderAction::FillPoints(_points) => Ok(()),
+            OrderAction::UsePoints(_points) => Ok(()),
         }
     }
 
     pub fn commit_order(&mut self, order: Order) -> Result<(), String> {
-        let client_id = order.client_id;
+        let _client_id = order.client_id;
         match order.action {
-            OrderAction::FillPoints(points) => {
-                Points::remove_points(&mut self.to_fill, client_id, points)?;
-                Points::add_points(&mut self.points, client_id, points)
-            }
-            OrderAction::UsePoints(points) => {
-                Points::remove_points(&mut self.to_use, client_id, points)
-            }
+            OrderAction::FillPoints(_points) => Ok(()),
+            OrderAction::UsePoints(_points) => Ok(()),
         }
     }
 
@@ -126,6 +110,12 @@ impl Points {
             serde_json::to_string(&res).map_err(|e| e.to_string())
         }
     }
+    pub fn sync(&self, _req: SyncReq) -> Result<String, String> {
+        let res = SyncRes {
+            points: self.points.clone(),
+        };
+        serde_json::to_string(&res).map_err(|_| "Failed to serialize points".to_string())
+    }
 
     pub fn spread_connection(&mut self, addr: String) -> Result<(), String> {
         for server in &self.servers {
@@ -144,20 +134,10 @@ impl Points {
     }
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
-    fn lock_fill_points() {
-        let points = Points::new("Me".to_string(), None);
-        let mut points = points.lock().unwrap();
-        points
-            .lock_order(Order {
-                client_id: 420,
-                action: OrderAction::FillPoints(100),
-            })
-            .unwrap();
-        assert_eq!(100, *points.to_fill.get(&420).unwrap());
-    }
-}
+    fn todo() {}
+}*/
