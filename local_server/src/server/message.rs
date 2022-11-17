@@ -63,7 +63,7 @@ pub fn receive(stream: &mut TcpStream) -> Vec<u8> {
 
 pub fn respond(stream: &mut TcpStream, res: String) -> Result<(), String> {
     debug!("Responding {:?}", res);
-    stream.write_all(&res.as_bytes()).map_err(|e| e.to_string())
+    stream.write_all(res.as_bytes()).map_err(|e| e.to_string())
 }
 
 pub fn connect_to(my_addr: &String, server_addr: &String) -> Result<HashSet<String>, String> {
@@ -90,7 +90,7 @@ pub fn spread_connect_to(addr: &String, server_addr: &String) -> Result<(), Stri
         addr: addr.to_owned(),
         copy: true,
     };
-    debug!("SPREADING CONNECT TO {}", server_addr);
+    debug!("Spreading CONNECT to {}", server_addr);
     send_to(CONNECT, msg, server_addr)?;
 
     Ok(())
