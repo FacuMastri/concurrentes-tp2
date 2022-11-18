@@ -1,15 +1,20 @@
 #![allow(dead_code)] // FIXME: remove this
 use std::time::Duration;
 
+use points::{Message, OrderAction};
+use serde::{Deserialize, Deserializer};
+
 const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
 const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
 
+#[derive(Debug, Clone)]
 pub enum TransactionState {
     Abort,
     Proceed,
     Timeout,
 }
 
+#[derive(Debug, Clone)]
 pub enum TransactionAction {
     Add,
     Lock,
@@ -17,6 +22,7 @@ pub enum TransactionAction {
     Consume,
 }
 
+#[derive(Debug, Clone)]
 pub struct Transaction {
     pub coordinator: String,
     pub timestamp: u64,
@@ -26,6 +32,39 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    pub fn new(coordinator: String, msg: &Message) -> Result<Transaction, String> {
+        let err = Err("Invalid message for transaction".to_string());
+
+        let action = match msg {
+            Message::LockOrder(order) => match order.action {
+                OrderAction::FillPoints(_) => err,
+                OrderAction::UsePoints(_) => Ok(TransactionAction::Lock),
+            },
+            Message::FreeOrder(order) => match order.action {
+                OrderAction::FillPoints(_) => err,
+                OrderAction::UsePoints(_) => Ok(TransactionAction::Free),
+            },
+            Message::CommitOrder(order) => match order.action {
+                OrderAction::FillPoints(_) => Ok(TransactionAction::Add),
+                OrderAction::UsePoints(_) => Ok(TransactionAction::Consume),
+            },
+        }?;
+
+        let order = msg.order();
+        let client_id = order.client_id;
+        let points = order.action.points();
+
+        let timestamp = generate_timestamp();
+
+        Ok(Transaction {
+            coordinator,
+            timestamp,
+            client_id,
+            action,
+            points,
+        })
+    }
+
     pub fn older_than(&self, other: &Transaction) -> bool {
         if self.timestamp == other.timestamp {
             self.coordinator < other.coordinator
@@ -33,4 +72,15 @@ impl Transaction {
             self.timestamp < other.timestamp
         }
     }
+}
+
+fn generate_timestamp() -> u64 {
+    1000
+}
+
+pub fn transaction_deserializer<'de, D>(_deserializer: D) -> Result<Option<Transaction>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(None)
 }

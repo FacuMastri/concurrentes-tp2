@@ -3,18 +3,20 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use super::message::{
-    connect_to, spread_connect_to, sync_with, ConnectReq, ConnectRes, SyncReq, SyncRes,
+use super::{
+    message::{connect_to, spread_connect_to, sync_with, ConnectReq, ConnectRes, SyncReq, SyncRes},
+    point_record::PointRecord,
+    transaction::{Transaction, TransactionAction},
 };
 use tracing::{debug, error};
 
-pub type PointMap = HashMap<u16, usize>;
+pub type PointMap = HashMap<u16, PointRecord>;
 
 #[derive(Debug)]
 pub struct PointStorage {
     pub points: PointMap,
     servers: HashSet<String>,
-    addr: String,
+    pub addr: String,
 }
 
 impl PointStorage {
@@ -36,12 +38,17 @@ impl PointStorage {
         }))
     }
 
-    fn _add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
+    pub fn get_point_record(&mut self, client_id: u16) -> &mut PointRecord {
+        self.points.entry(client_id).or_insert(PointRecord::new())
+    }
+
+    /* FIXME: maybe this is not needed
+    fn add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
         *point_map.entry(client_id).or_insert(0) += points;
         Ok(())
     }
 
-    fn _remove_points(
+    fn remove_points(
         point_map: &mut PointMap,
         client_id: u16,
         points: usize,
@@ -56,6 +63,7 @@ impl PointStorage {
         point_map.entry(client_id).and_modify(|e| *e -= points);
         Ok(())
     }
+    */
 
     /*  FIXME: delete this
         pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
@@ -128,6 +136,43 @@ impl PointStorage {
         }
 
         Ok(())
+    }
+
+    pub fn take_for(&mut self, tx: Transaction) -> Result<(), String> {
+        let rec = self.get_point_record(tx.client_id);
+
+        // wait-die
+        if let Some(etx) = rec.transaction.clone() {
+            if tx.older_than(&etx) {
+                return Err("Transaction is older than the current one".to_string());
+            }
+        }
+
+        // FIXME: point_storage is locked while waiting for this lock
+        let points = rec.points.clone();
+        let points = points.lock().unwrap();
+
+        let _r = match tx.action {
+            TransactionAction::Add => Ok(()),
+            TransactionAction::Lock => {
+                if points.0 < tx.points {
+                    Err("Not enough points".to_string())
+                } else {
+                    Ok(())
+                }
+            }
+            _ => {
+                // Free or Consume
+                if points.1 < tx.points {
+                    Err("Not enough locked".to_string())
+                } else {
+                    Ok(())
+                }
+            }
+        }?;
+
+        //Ok(points)
+        Err("Not implemented".to_string())
     }
 }
 

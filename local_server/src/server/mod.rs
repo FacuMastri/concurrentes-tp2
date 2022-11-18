@@ -1,4 +1,5 @@
 mod message;
+mod point_record;
 mod point_storage;
 mod transaction;
 
@@ -15,7 +16,10 @@ use tracing::{debug, error};
 
 use crate::server::message::{receive, respond, SyncReq};
 
-use self::message::{ConnectReq, CONNECT, SYNC};
+use self::{
+    message::{ConnectReq, CONNECT, SYNC},
+    transaction::Transaction,
+};
 
 #[derive(Debug)]
 pub struct Server {
@@ -93,7 +97,7 @@ impl Server {
     ) {
         let result = match msg.handle_locally() {
             Ok(()) => Ok(()),
-            Err(_) => Self::handle_client_message_distributively(msg, points),
+            Err(_) => Self::handle_client_message_distributedly(msg, points),
         };
 
         let response = if result.is_ok() { 1 } else { 0 };
@@ -103,14 +107,15 @@ impl Server {
         };
     }
 
-    fn handle_client_message_distributively(
-        _msg: Message,
-        _points: Arc<Mutex<PointStorage>>,
+    fn handle_client_message_distributedly(
+        msg: Message,
+        points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
-        /*
         let points = points.lock().expect("Failed to lock points");
-        let tx = Transaction::new(msg);
-        let record = points.take(tx)?; // Check if order can be fulfilled; Return [mutex guard/arc mutex] of the record; implement wait-die (use another map for txs)
+        let tx = Transaction::new(points.addr.clone(), &msg)?;
+        let record = points.take_for(tx)?;
+        // Check if order can be fulfilled; Return [mutex guard/arc mutex] of the record; implement wait-die (use another map for txs)
+        /*
         // let record = record.lock().expect("Failed to lock record");
         drop(points);
         record.coordinate(tx)

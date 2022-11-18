@@ -67,6 +67,14 @@ impl Message {
             OrderAction::FillPoints(_) => Ok(()),
         }
     }
+
+    pub fn order(&self) -> &Order {
+        match self {
+            Message::LockOrder(order) => order,
+            Message::FreeOrder(order) => order,
+            Message::CommitOrder(order) => order,
+        }
+    }
 }
 
 #[cfg(test)]
