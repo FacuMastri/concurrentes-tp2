@@ -2,7 +2,7 @@
 use std::time::Duration;
 
 use points::{Message, OrderAction};
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
 const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
@@ -14,7 +14,7 @@ pub enum TransactionState {
     Timeout,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TransactionAction {
     Add,
     Lock,
@@ -22,7 +22,7 @@ pub enum TransactionAction {
     Consume,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub coordinator: String,
     pub timestamp: u64,

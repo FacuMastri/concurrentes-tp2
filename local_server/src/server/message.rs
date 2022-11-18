@@ -13,6 +13,7 @@ use super::point_storage::PointMap;
 const TIMEOUT: u64 = 1000;
 pub const CONNECT: u8 = 1;
 pub const SYNC: u8 = 2;
+pub const TRANSACTION: u8 = 3;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ConnectReq {

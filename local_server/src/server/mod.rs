@@ -17,7 +17,7 @@ use tracing::{debug, error};
 use crate::server::message::{receive, respond, SyncReq};
 
 use self::{
-    message::{ConnectReq, CONNECT, SYNC},
+    message::{ConnectReq, CONNECT, SYNC, TRANSACTION},
     transaction::Transaction,
 };
 
@@ -137,6 +137,7 @@ impl Server {
         let res = match buf[0] {
             CONNECT => Self::handle_server_connection(stream, points),
             SYNC => Self::handle_server_sync(stream, points),
+            TRANSACTION => Self::handle_server_transaction(stream, points),
             _ => Err("Unknown message type".to_string()),
         };
 
@@ -177,5 +178,21 @@ impl Server {
         let res = points.sync(req)?;
 
         respond(&mut stream, res)
+    }
+
+    fn handle_server_transaction(
+        mut stream: TcpStream,
+        _points: Arc<Mutex<PointStorage>>,
+    ) -> Result<(), String> {
+        let res = receive(&mut stream)?;
+
+        let tx: Transaction =
+            serde_json::from_slice(&res).map_err(|_| "Failed to parse transaction")?;
+        debug!("RECV: {:?}", tx);
+        /*
+        let points = points.lock().map_err(|_| "Failed to lock points")?;
+        let rec = points.take_for(&tx)?;
+        */
+        Err("Not implemented".to_string())
     }
 }
