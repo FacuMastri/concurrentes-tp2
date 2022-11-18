@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 extern crate num_cpus;
 
 use std::fmt;
@@ -184,12 +185,6 @@ impl ThreadPool {
         self.shared_data.panic_count.load(Ordering::Relaxed)
     }
 
-    /// **Deprecated: Use [`ThreadPool::set_num_threads`](#method.set_num_threads)**
-    #[deprecated(since = "1.3.0", note = "use ThreadPool::set_num_threads")]
-    pub fn set_threads(&mut self, num_threads: usize) {
-        self.set_num_threads(num_threads)
-    }
-
     pub fn set_num_threads(&mut self, num_threads: usize) {
         assert!(num_threads >= 1);
         let prev_num_threads = self
@@ -237,9 +232,6 @@ impl Clone for ThreadPool {
     }
 }
 
-/// Create a thread pool with one thread per CPU.
-/// On machines with hyperthreading,
-/// this will create one thread per hyperthread.
 impl Default for ThreadPool {
     fn default() -> Self {
         ThreadPool::new(num_cpus::get())
@@ -391,7 +383,8 @@ mod test {
             });
         }
 
-        assert_eq!(rx.iter().take(TEST_TASKS).fold(0, |a, b| a + b), TEST_TASKS);
+        let sum_tasks: usize = rx.iter().take(TEST_TASKS).sum();
+        assert_eq!(sum_tasks, TEST_TASKS);
     }
 
     #[test]
@@ -421,7 +414,8 @@ mod test {
             });
         }
 
-        assert_eq!(rx.iter().take(TEST_TASKS).fold(0, |a, b| a + b), TEST_TASKS);
+        let sum_tasks: usize = rx.iter().take(TEST_TASKS).sum();
+        assert_eq!(sum_tasks, TEST_TASKS);
     }
 
     #[test]
@@ -474,12 +468,14 @@ mod test {
         assert_eq!(pool.active_count(), TEST_TASKS);
         b1.wait();
 
-        assert_eq!(rx.iter().take(test_tasks).fold(0, |a, b| a + b), test_tasks);
+        let sum_task: usize = rx.iter().take(test_tasks).sum();
+
+        assert_eq!(sum_task, test_tasks);
         pool.join();
 
         let atomic_active_count = pool.active_count();
-        assert!(
-            atomic_active_count == 0,
+        assert_eq!(
+            atomic_active_count, 0,
             "atomic_active_count: {}",
             atomic_active_count
         );
@@ -650,10 +646,8 @@ mod test {
         error(format!("pool0.join() complete =-= {:?}", pool1));
         pool1.join();
         error("pool1.join() complete\n".into());
-        assert_eq!(
-            rx.iter().fold(0, |acc, i| acc + i),
-            0 + 1 + 2 + 3 + 4 + 5 + 6 + 7
-        );
+        let result: usize = rx.iter().sum();
+        assert_eq!(result, 1 + 2 + 3 + 4 + 5 + 6 + 7);
     }
 
     #[test]
@@ -662,8 +656,6 @@ mod test {
         let pool = ThreadPool::new(4);
 
         pool.join();
-
-        assert!(true);
     }
 
     #[test]
@@ -712,8 +704,8 @@ mod test {
                     });
                 }
                 drop(tx);
-                rx.iter()
-                    .fold(0, |accumulator, element| accumulator + element)
+                let result: usize = rx.iter().sum();
+                result
             })
         };
         let t1 = {
@@ -730,8 +722,8 @@ mod test {
                     });
                 }
                 drop(tx);
-                rx.iter()
-                    .fold(1, |accumulator, element| accumulator * element)
+                let result: usize = rx.iter().product();
+                result
             })
         };
 
@@ -775,7 +767,7 @@ mod test {
     #[test]
     /// The scenario is joining threads should not be stuck once their wave
     /// of joins has completed. So once one thread joining on a pool has
-    /// succeded other threads joining on the same pool must get out even if
+    /// succeeded other threads joining on the same pool must get out even if
     /// the thread is used for other jobs while the first group is finishing
     /// their join
     ///
