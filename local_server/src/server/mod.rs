@@ -111,9 +111,9 @@ impl Server {
         msg: Message,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
-        let points = points.lock().expect("Failed to lock points");
+        let mut points = points.lock().expect("Failed to lock points");
         let tx = Transaction::new(points.addr.clone(), &msg)?;
-        let record = points.take_for(tx)?;
+        points.take_for(tx)?;
         // Check if order can be fulfilled; Return [mutex guard/arc mutex] of the record; implement wait-die (use another map for txs)
         /*
         // let record = record.lock().expect("Failed to lock record");
