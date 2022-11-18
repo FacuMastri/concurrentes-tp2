@@ -1,5 +1,6 @@
 mod message;
 mod point_storage;
+mod transaction;
 
 use point_storage::Points;
 use points::{Message, CLIENT_CONNECTION, MESSAGE_BUFFER_SIZE, SERVER_MESSAGE};
@@ -86,20 +87,31 @@ impl Server {
     }
 
     fn handle_client_message(msg: Message, stream: &mut TcpStream, points: Arc<Mutex<Points>>) {
-        let mut points = points.lock().expect("Failed to lock points");
-        let result = points.handle_message(msg);
-
-        let response = match result {
-            Ok(()) => stream.write_all(&[1]),
-            Err(err) => {
-                error!("Error: {}", err);
-                stream.write_all(&[0])
-            }
+        let result = match msg.handle_locally() {
+            Ok(()) => Ok(()),
+            Err(_) => Self::handle_client_message_distributively(msg, points),
         };
 
-        if response.is_err() {
+        let response = if result.is_ok() { 1 } else { 0 };
+
+        if stream.write_all(&[response]).is_err() {
             error!("Failed to send response");
         };
+    }
+
+    fn handle_client_message_distributively(
+        _msg: Message,
+        _points: Arc<Mutex<Points>>,
+    ) -> Result<(), String> {
+        /*
+        let points = points.lock().expect("Failed to lock points");
+        let tx = Transaction::new(msg);
+        let record = points.take(tx)?; // Check if order can be fulfilled; Return [mutex guard/arc mutex] of the record; implement wait-die (use another map for txs)
+        // let record = record.lock().expect("Failed to lock record");
+        drop(points);
+        record.coordinate(tx)
+        */
+        Err("Not implemented".to_string())
     }
 
     fn spawn_server_message_handler(&mut self, stream: TcpStream) {

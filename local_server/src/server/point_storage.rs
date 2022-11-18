@@ -3,8 +3,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use points::{Message as ClientMessage, Order, OrderAction};
-
 use super::message::{
     connect_to, spread_connect_to, sync_with, ConnectReq, ConnectRes, SyncReq, SyncRes,
 };
@@ -59,37 +57,39 @@ impl Points {
         Ok(())
     }
 
-    pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
-        let _client_id = order.client_id;
-        match order.action {
-            OrderAction::FillPoints(_points) => Ok(()),
-            OrderAction::UsePoints(_points) => Ok(()),
+    /*  FIXME: delete this
+        pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
+            let _client_id = order.client_id;
+            match order.action {
+                OrderAction::FillPoints(_points) => Ok(()),
+                OrderAction::UsePoints(_points) => Ok(()),
+            }
         }
-    }
 
-    pub fn free_order(&mut self, order: Order) -> Result<(), String> {
-        let _client_id = order.client_id;
-        match order.action {
-            OrderAction::FillPoints(_points) => Ok(()),
-            OrderAction::UsePoints(_points) => Ok(()),
+        pub fn free_order(&mut self, order: Order) -> Result<(), String> {
+            let _client_id = order.client_id;
+            match order.action {
+                OrderAction::FillPoints(_points) => Ok(()),
+                OrderAction::UsePoints(_points) => Ok(()),
+            }
         }
-    }
 
-    pub fn commit_order(&mut self, order: Order) -> Result<(), String> {
-        let _client_id = order.client_id;
-        match order.action {
-            OrderAction::FillPoints(_points) => Ok(()),
-            OrderAction::UsePoints(_points) => Ok(()),
+        pub fn commit_order(&mut self, order: Order) -> Result<(), String> {
+            let _client_id = order.client_id;
+            match order.action {
+                OrderAction::FillPoints(_points) => Ok(()),
+                OrderAction::UsePoints(_points) => Ok(()),
+            }
         }
-    }
 
-    pub fn handle_message(&mut self, msg: ClientMessage) -> Result<(), String> {
-        match msg {
-            ClientMessage::LockOrder(order) => self.lock_order(order),
-            ClientMessage::FreeOrder(order) => self.free_order(order),
-            ClientMessage::CommitOrder(order) => self.commit_order(order),
+        pub fn handle_message(&mut self, msg: ClientMessage) -> Result<(), String> {
+            match msg {
+                ClientMessage::LockOrder(order) => self.lock_order(order),
+                ClientMessage::FreeOrder(order) => self.free_order(order),
+                ClientMessage::CommitOrder(order) => self.commit_order(order),
+            }
         }
-    }
+    */
 
     pub fn add_connection(&mut self, req: ConnectReq) -> Result<String, String> {
         debug!("Adding connection: {:?}", &req.addr);
