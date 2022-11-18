@@ -1,11 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use super::{
     message::{connect_to, spread_connect_to, sync_with, ConnectReq, ConnectRes, SyncReq, SyncRes},
-    point_record::PointRecord,
+    point_record::{PointRecord, Points},
     transaction::{Transaction, TransactionAction},
 };
 use tracing::{debug, error};
@@ -138,7 +138,10 @@ impl PointStorage {
         Ok(())
     }
 
-    pub fn take_for(&mut self, tx: Transaction) -> Result<(), String> {
+    /// Check if order can be fulfilled
+    /// Return [mutex guard/arc mutex] of the record
+    /// implement wait-die
+    pub fn take_for(&mut self, tx: &Transaction) -> Result<Arc<Mutex<Points>>, String> {
         let rec = self.get_point_record(tx.client_id);
 
         // wait-die
@@ -152,11 +155,11 @@ impl PointStorage {
         let points = rec.points.clone();
         let points = points.lock().unwrap();
 
-        let _r = match tx.action {
+        match tx.action {
             TransactionAction::Add => Ok(()),
             TransactionAction::Lock => {
                 if points.0 < tx.points {
-                    Err("Not enough points".to_string())
+                    Err("Not enough points available".to_string())
                 } else {
                     Ok(())
                 }
@@ -164,15 +167,14 @@ impl PointStorage {
             _ => {
                 // Free or Consume
                 if points.1 < tx.points {
-                    Err("Not enough locked".to_string())
+                    Err("Not enough points locked".to_string())
                 } else {
                     Ok(())
                 }
             }
         }?;
 
-        //Ok(points)
-        Err("Not implemented".to_string())
+        Ok(rec.points.clone())
     }
 }
 

@@ -113,14 +113,11 @@ impl Server {
     ) -> Result<(), String> {
         let mut points = points.lock().expect("Failed to lock points");
         let tx = Transaction::new(points.addr.clone(), &msg)?;
-        points.take_for(tx)?;
-        // Check if order can be fulfilled; Return [mutex guard/arc mutex] of the record; implement wait-die (use another map for txs)
-        /*
-        // let record = record.lock().expect("Failed to lock record");
+        let record = points.take_for(&tx)?;
+        let record = record.lock();
         drop(points);
+        let mut record = record.expect("Failed to lock record");
         record.coordinate(tx)
-        */
-        Err("Not implemented".to_string())
     }
 
     fn spawn_server_message_handler(&mut self, stream: TcpStream) {
