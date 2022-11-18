@@ -14,7 +14,7 @@ pub type PointMap = HashMap<u16, usize>;
 pub struct PointStorage {
     pub points: PointMap,
     servers: HashSet<String>,
-    my_addr: String,
+    addr: String,
 }
 
 impl PointStorage {
@@ -32,7 +32,7 @@ impl PointStorage {
         Arc::new(Mutex::new(PointStorage {
             points,
             servers,
-            my_addr: self_addr,
+            addr: self_addr,
         }))
     }
 
@@ -122,7 +122,7 @@ impl PointStorage {
             if server == &addr {
                 continue;
             }
-            if server == &self.my_addr {
+            if server == &self.addr {
                 continue;
             }
             if spread_connect_to(&addr, server).is_err() {
