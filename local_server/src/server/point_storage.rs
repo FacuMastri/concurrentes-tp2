@@ -119,10 +119,7 @@ impl PointStorage {
 
     pub fn spread_connection(&mut self, addr: String) -> Result<(), String> {
         for server in &self.servers {
-            if server == &addr {
-                continue;
-            }
-            if server == &self.addr {
+            if server == &addr || server == &self.addr {
                 continue;
             }
             if spread_connect_to(&addr, server).is_err() {
