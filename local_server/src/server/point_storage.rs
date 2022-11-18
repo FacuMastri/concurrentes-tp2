@@ -11,13 +11,13 @@ use tracing::{debug, error};
 pub type PointMap = HashMap<u16, usize>;
 
 #[derive(Debug)]
-pub struct Points {
+pub struct PointStorage {
     pub points: PointMap,
     servers: HashSet<String>,
     my_addr: String,
 }
 
-impl Points {
+impl PointStorage {
     pub fn new(self_addr: String, server_addr: Option<String>) -> Arc<Mutex<Self>> {
         let mut servers = HashSet::new();
         let mut points = PointMap::new();
@@ -29,7 +29,7 @@ impl Points {
             servers.insert(self_addr.clone());
         }
 
-        Arc::new(Mutex::new(Points {
+        Arc::new(Mutex::new(PointStorage {
             points,
             servers,
             my_addr: self_addr,

@@ -2,7 +2,7 @@ mod message;
 mod point_storage;
 mod transaction;
 
-use point_storage::Points;
+use point_storage::PointStorage;
 use points::{Message, CLIENT_CONNECTION, MESSAGE_BUFFER_SIZE, SERVER_MESSAGE};
 
 use std::{
@@ -22,7 +22,7 @@ pub struct Server {
     address: String,
     listener: TcpListener,
     handlers: Vec<JoinHandle<()>>,
-    points: Arc<Mutex<Points>>,
+    points: Arc<Mutex<PointStorage>>,
 }
 
 impl Server {
@@ -33,7 +33,7 @@ impl Server {
             address: address.clone(),
             listener,
             handlers: vec![],
-            points: Points::new(address, core_server_addr),
+            points: PointStorage::new(address, core_server_addr),
         }
     }
 
@@ -72,7 +72,7 @@ impl Server {
         self.handlers.push(handler);
     }
 
-    fn connection_handler(mut stream: TcpStream, points: Arc<Mutex<Points>>) {
+    fn connection_handler(mut stream: TcpStream, points: Arc<Mutex<PointStorage>>) {
         let addr = stream.local_addr().unwrap().ip().to_string();
         debug!("Connection established with {}", addr);
 
@@ -86,7 +86,11 @@ impl Server {
         debug!("Connection closed with {}", addr);
     }
 
-    fn handle_client_message(msg: Message, stream: &mut TcpStream, points: Arc<Mutex<Points>>) {
+    fn handle_client_message(
+        msg: Message,
+        stream: &mut TcpStream,
+        points: Arc<Mutex<PointStorage>>,
+    ) {
         let result = match msg.handle_locally() {
             Ok(()) => Ok(()),
             Err(_) => Self::handle_client_message_distributively(msg, points),
@@ -101,7 +105,7 @@ impl Server {
 
     fn handle_client_message_distributively(
         _msg: Message,
-        _points: Arc<Mutex<Points>>,
+        _points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
         /*
         let points = points.lock().expect("Failed to lock points");
@@ -123,7 +127,7 @@ impl Server {
         self.handlers.push(handler);
     }
 
-    fn server_message_handler(mut stream: TcpStream, points: Arc<Mutex<Points>>) {
+    fn server_message_handler(mut stream: TcpStream, points: Arc<Mutex<PointStorage>>) {
         let mut buf = [0; 1];
 
         stream.read_exact(&mut buf).unwrap();
@@ -141,7 +145,7 @@ impl Server {
 
     fn handle_server_connection(
         mut stream: TcpStream,
-        points: Arc<Mutex<Points>>,
+        points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
         let res = receive(&mut stream)?;
 
@@ -156,7 +160,10 @@ impl Server {
         respond(&mut stream, res)
     }
 
-    fn handle_server_sync(mut stream: TcpStream, points: Arc<Mutex<Points>>) -> Result<(), String> {
+    fn handle_server_sync(
+        mut stream: TcpStream,
+        points: Arc<Mutex<PointStorage>>,
+    ) -> Result<(), String> {
         let res = receive(&mut stream)?;
 
         let req: SyncReq =
