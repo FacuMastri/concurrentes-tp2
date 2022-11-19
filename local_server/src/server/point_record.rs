@@ -1,8 +1,9 @@
-use super::transaction::{transaction_deserializer, Transaction, TransactionState};
+use super::transaction::{transaction_deserializer, Transaction, TransactionState, COMMIT_TIMEOUT};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
+    io::Read,
     net::TcpStream,
     sync::{Arc, Mutex},
 };
@@ -94,14 +95,26 @@ impl Points {
     pub fn handle_transaction(
         &mut self,
         _tx: Transaction,
-        _coordinator: TcpStream,
+        mut coordinator: TcpStream,
     ) -> Result<(), String> {
         // Already received a transaction, locked points and answered the prepare
         // Should now wait for the commit or abort
 
-        // timeout = COMMIT_TIMEOUT
+        coordinator
+            .set_read_timeout(Some(COMMIT_TIMEOUT))
+            .expect("Should not fail");
 
-        // add / remove / lock the points
-        Err("Not implemented".to_string())
+        let mut buf = [TransactionState::Timeout as u8; 1];
+        coordinator
+            .read_exact(&mut buf)
+            .map_err(|e| e.to_string())?;
+
+        if buf[0] == TransactionState::Proceed as u8 {
+            // commit
+            // add / remove / lock the points
+            Ok(())
+        } else {
+            Err("Aborted Transaction".to_string())
+        }
     }
 }

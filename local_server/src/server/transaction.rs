@@ -9,8 +9,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use super::message::{write_to, TRANSACTION};
 
-const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
-const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
+pub const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
+pub const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Clone)]
 pub enum TransactionState {
