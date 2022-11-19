@@ -12,7 +12,7 @@ use std::{
     sync::{Arc, Mutex},
     thread::{self, JoinHandle},
 };
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::server::message::{receive, respond, SyncReq};
 
@@ -95,6 +95,8 @@ impl Server {
         stream: &mut TcpStream,
         points: Arc<Mutex<PointStorage>>,
     ) {
+        info!("Received {:?}", msg);
+
         let result = match msg.handle_locally() {
             Ok(()) => Ok(()),
             Err(_) => Self::handle_client_message_distributively(msg, points),
@@ -105,6 +107,7 @@ impl Server {
         if stream.write_all(&[response]).is_err() {
             error!("Failed to send response");
         };
+        info!("Sent response: {:?} [{}]", result, response);
     }
 
     fn handle_client_message_distributively(
@@ -115,7 +118,7 @@ impl Server {
         let tx = Transaction::new(points.self_address.clone(), &msg)?;
         let record = points.take_for(&tx)?;
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
-        let servers = points.servers.clone();
+        let servers = points.other_servers();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
         record.coordinate(tx, servers)
     }

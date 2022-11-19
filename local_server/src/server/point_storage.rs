@@ -46,6 +46,14 @@ impl PointStorage {
             .or_insert_with(PointRecord::new)
     }
 
+    pub fn other_servers(&self) -> HashSet<String> {
+        self.servers
+            .iter()
+            .filter(|addr| **addr != self.self_address)
+            .cloned()
+            .collect()
+    }
+
     /* FIXME: maybe this is not needed
     fn add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
         *point_map.entry(client_id).or_insert(0) += points;
