@@ -97,7 +97,7 @@ impl Server {
     ) {
         let result = match msg.handle_locally() {
             Ok(()) => Ok(()),
-            Err(_) => Self::handle_client_message_distributedly(msg, points),
+            Err(_) => Self::handle_client_message_distributively(msg, points),
         };
 
         let response = if result.is_ok() { 1 } else { 0 };
@@ -107,7 +107,7 @@ impl Server {
         };
     }
 
-    fn handle_client_message_distributedly(
+    fn handle_client_message_distributively(
         msg: Message,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
