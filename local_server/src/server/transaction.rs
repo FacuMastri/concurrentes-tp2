@@ -1,17 +1,16 @@
-#![allow(dead_code)] // FIXME: remove this
 use std::time::Duration;
 
 use points::{Message, OrderAction};
 use serde::{Deserialize, Deserializer, Serialize};
 
-const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
-const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
+const _PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
+const _COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Clone)]
 pub enum TransactionState {
     Abort,
     Proceed,
-    Timeout,
+    //Timeout,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

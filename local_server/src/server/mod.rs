@@ -115,8 +115,9 @@ impl Server {
         let tx = Transaction::new(points.addr.clone(), &msg)?;
         let record = points.take_for(&tx)?;
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
+        let servers = points.servers.clone();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        record.coordinate(tx)
+        record.coordinate(tx, servers)
     }
 
     fn spawn_server_message_handler(&mut self, stream: TcpStream) {

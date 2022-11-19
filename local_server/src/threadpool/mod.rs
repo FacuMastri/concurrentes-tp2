@@ -133,8 +133,7 @@ impl ThreadPoolSharedData {
 
     fn no_work_notify_all(&self) {
         if !self.has_work() {
-            *self
-                .empty_trigger
+            self.empty_trigger
                 .lock()
                 .expect("Unable to notify all joining threads");
             self.empty_condvar.notify_all();

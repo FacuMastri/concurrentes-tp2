@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     io::Write,
     net::TcpStream,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
 
 use super::{
@@ -17,7 +17,7 @@ pub type PointMap = HashMap<u16, PointRecord>;
 #[derive(Debug)]
 pub struct PointStorage {
     pub points: PointMap,
-    servers: HashSet<String>,
+    pub servers: HashSet<String>,
     pub addr: String,
 }
 
@@ -41,7 +41,9 @@ impl PointStorage {
     }
 
     pub fn get_point_record(&mut self, client_id: u16) -> &mut PointRecord {
-        self.points.entry(client_id).or_insert(PointRecord::new())
+        self.points
+            .entry(client_id)
+            .or_insert_with(PointRecord::new)
     }
 
     /* FIXME: maybe this is not needed

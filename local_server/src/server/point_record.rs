@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     net::TcpStream,
     sync::{Arc, Mutex},
 };
@@ -30,10 +31,15 @@ impl PointRecord {
 }
 
 impl Points {
-    pub fn coordinate(&mut self, _transaction: Transaction) -> Result<(), String> {
+    pub fn coordinate(
+        &mut self,
+        _transaction: Transaction,
+        _servers: HashSet<String>,
+    ) -> Result<(), String> {
+        // timeout = PREPARE_TIMEOUT
         /*
         PREPARE TRANSACTION:
-        - using send_to( all_servers, transaction )
+        - using send_to( all_servers, transaction ) -> could use rayon
 
         RECEIVE RESPONSES
         - any abort aborts the transactions
@@ -56,11 +62,13 @@ impl Points {
 
     pub fn handle_transaction(
         &mut self,
-        tx: Transaction,
-        coordinator: TcpStream,
+        _tx: Transaction,
+        _coordinator: TcpStream,
     ) -> Result<(), String> {
         // Already received a transaction, locked points and answered the prepare
         // Should now wait for the commit or abort
+
+        // timeout = COMMIT_TIMEOUT
         Err("Not implemented".to_string())
     }
 }
