@@ -34,9 +34,8 @@ pub struct SyncRes {
     pub points: PointMap,
 }
 
-pub fn send_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<String, String> {
+pub fn write_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<TcpStream, String> {
     let stream = TcpStream::connect(addr).map_err(|e| e.to_string())?;
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
 
     stream
@@ -55,6 +54,13 @@ pub fn send_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<Strin
     writer.write_all(&msg_len).map_err(|e| e.to_string())?;
     writer.write_all(msg).map_err(|e| e.to_string())?;
     writer.flush().map_err(|e| e.to_string())?;
+
+    Ok(stream)
+}
+
+pub fn send_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<String, String> {
+    let stream = write_to(msg_type, msg, addr)?;
+    let mut reader = BufReader::new(stream.try_clone().unwrap());
 
     let mut res = String::new();
     reader.read_line(&mut res).map_err(|e| e.to_string())?;

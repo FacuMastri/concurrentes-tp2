@@ -1,16 +1,22 @@
-use std::time::Duration;
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+    time::Duration,
+};
 
 use points::{Message, OrderAction};
 use serde::{Deserialize, Deserializer, Serialize};
 
-const _PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
-const _COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
+use super::message::{write_to, TRANSACTION};
+
+const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
+const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Clone)]
 pub enum TransactionState {
     Abort,
     Proceed,
-    //Timeout,
+    Timeout,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +76,31 @@ impl Transaction {
         } else {
             self.timestamp < other.timestamp
         }
+    }
+
+    pub fn prepare(
+        tx: &Transaction,
+        server: &String,
+    ) -> Result<(TransactionState, TcpStream), String> {
+        let mut stream = write_to(TRANSACTION, tx, server)?;
+        stream
+            .set_read_timeout(Some(PREPARE_TIMEOUT))
+            .map_err(|e| e.to_string())?;
+
+        let mut buf = [0u8; 1];
+        let read = stream.read_exact(&mut buf);
+        if read.is_err() {
+            return Ok((TransactionState::Timeout, stream));
+        }
+        if buf[0] == TransactionState::Proceed as u8 {
+            Ok((TransactionState::Proceed, stream))
+        } else {
+            Ok((TransactionState::Abort, stream))
+        }
+    }
+
+    pub fn finalize(stream: &mut TcpStream, state: TransactionState) -> Result<(), String> {
+        stream.write_all(&[state as u8]).map_err(|e| e.to_string())
     }
 }
 
