@@ -1,4 +1,6 @@
-use super::transaction::{transaction_deserializer, Transaction, TransactionState, COMMIT_TIMEOUT};
+use super::transaction::{
+    transaction_deserializer, Transaction, TransactionAction, TransactionState, COMMIT_TIMEOUT,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -79,22 +81,23 @@ impl Points {
         }
 
         if abort {
-            /*
-            - add points(*) -> should be saved for later
-            - lock points -> should fail & do nothing
-            - free points -> should be saved for later
-            - commit points -> should be freed later
-            */
-            Err("Not implemented".to_string())
+            match tx.action {
+                TransactionAction::Lock => Err("Transaction Aborted".to_string()),
+                _ => {
+                    // Save for later
+                    // Ok(())
+                    Err("Not implemented".to_string())
+                }
+            }
         } else {
-            // add / remove / lock the points
+            self.apply(tx);
             Ok(())
         }
     }
 
     pub fn handle_transaction(
         &mut self,
-        _tx: Transaction,
+        tx: Transaction,
         mut coordinator: TcpStream,
     ) -> Result<(), String> {
         // Already received a transaction, locked points and answered the prepare
@@ -110,11 +113,29 @@ impl Points {
             .map_err(|e| e.to_string())?;
 
         if buf[0] == TransactionState::Proceed as u8 {
-            // commit
-            // add / remove / lock the points
+            self.apply(tx);
             Ok(())
         } else {
             Err("Aborted Transaction".to_string())
+        }
+    }
+
+    pub fn apply(&mut self, tx: Transaction) {
+        match tx.action {
+            TransactionAction::Add => {
+                self.0 += tx.points;
+            }
+            TransactionAction::Lock => {
+                self.0 -= tx.points;
+                self.1 += tx.points;
+            }
+            TransactionAction::Free => {
+                self.1 -= tx.points;
+                self.0 += tx.points;
+            }
+            TransactionAction::Consume => {
+                self.1 -= tx.points;
+            }
         }
     }
 }
