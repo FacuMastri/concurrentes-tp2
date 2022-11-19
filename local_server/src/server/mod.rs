@@ -17,7 +17,7 @@ use tracing::{debug, error, info};
 use crate::server::message::{receive_from, respond_to, SyncRequest};
 
 use self::{
-    message::{ConnectReq, CONNECT, SYNC, TRANSACTION},
+    message::{ConnectRequest, CONNECT, SYNC, TRANSACTION},
     transaction::Transaction,
 };
 
@@ -139,7 +139,7 @@ impl Server {
         let tx = Transaction::new(points.self_address.clone(), &msg)?;
         let record = points.take_for(&tx)?;
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
-        let servers = points.other_servers();
+        let servers = points.get_other_servers();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
         record.coordinate(tx, servers)
     }
@@ -181,7 +181,7 @@ impl Server {
     ) -> Result<(), String> {
         let res = receive_from(&mut stream)?;
 
-        let request: ConnectReq =
+        let request: ConnectRequest =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse connect req")?;
 
         let mut points = points.lock().unwrap();
