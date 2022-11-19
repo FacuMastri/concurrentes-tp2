@@ -36,6 +36,15 @@ impl Order {
     }
 }
 
+impl OrderAction {
+    pub fn points(&self) -> usize {
+        match self {
+            OrderAction::UsePoints(points) => *points,
+            OrderAction::FillPoints(points) => *points,
+        }
+    }
+}
+
 pub const ORDER_BUFFER_SIZE: usize = 6;
 
 // TODO: better use of bytes

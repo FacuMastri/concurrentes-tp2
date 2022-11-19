@@ -1,4 +1,4 @@
-use crate::{Order, ORDER_BUFFER_SIZE};
+use crate::{Order, OrderAction, ORDER_BUFFER_SIZE};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
@@ -48,6 +48,31 @@ impl From<MessageBytes> for Message {
             2 => Message::FreeOrder(order),
             3 => Message::CommitOrder(order),
             _ => panic!("Invalid message"),
+        }
+    }
+}
+
+impl Message {
+    pub fn handle_locally(&self) -> Result<(), String> {
+        let err = "Could not handle message locally".to_string();
+
+        let order = match self {
+            Message::LockOrder(order) => Ok(order),
+            Message::FreeOrder(order) => Ok(order),
+            Message::CommitOrder(_) => Err(err.clone()),
+        }?;
+
+        match order.action {
+            OrderAction::UsePoints(_) => Err(err),
+            OrderAction::FillPoints(_) => Ok(()),
+        }
+    }
+
+    pub fn order(&self) -> &Order {
+        match self {
+            Message::LockOrder(order) => order,
+            Message::FreeOrder(order) => order,
+            Message::CommitOrder(order) => order,
         }
     }
 }
