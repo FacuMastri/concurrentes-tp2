@@ -44,6 +44,8 @@ impl Server {
     pub fn listen(mut self) -> JoinHandle<()> {
         let listener = self.listener.try_clone().unwrap();
 
+        self.spawn_logger(3000);
+
         thread::spawn(move || {
             debug!("Listening on {}", self.address);
             for stream in listener.incoming() {
@@ -51,6 +53,20 @@ impl Server {
                 self.handle_stream(stream);
             }
         })
+    }
+
+    pub fn spawn_logger(&mut self, interval: u64) {
+        let points = self.points.clone();
+        let handler = thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_millis(interval));
+            let points = points.lock().unwrap();
+            // TODO: get a better way to print the points & drop the lock
+            // let log = points.log();
+            // drop(points);
+            // debug!("{}", log);
+            debug!("{:#?}", points);
+        });
+        self.handlers.push(handler);
     }
 
     fn handle_stream(&mut self, mut stream: TcpStream) {
