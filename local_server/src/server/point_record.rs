@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    net::TcpStream,
+    sync::{Arc, Mutex},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +51,16 @@ impl Points {
 
         */
 
+        Err("Not implemented".to_string())
+    }
+
+    pub fn handle_transaction(
+        &mut self,
+        tx: Transaction,
+        coordinator: TcpStream,
+    ) -> Result<(), String> {
+        // Already received a transaction, locked points and answered the prepare
+        // Should now wait for the commit or abort
         Err("Not implemented".to_string())
     }
 }

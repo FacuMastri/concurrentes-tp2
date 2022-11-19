@@ -1,12 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
+    io::Write,
+    net::TcpStream,
     sync::{Arc, Mutex, MutexGuard},
 };
 
 use super::{
     message::{connect_to, spread_connect_to, sync_with, ConnectReq, ConnectRes, SyncReq, SyncRes},
     point_record::{PointRecord, Points},
-    transaction::{Transaction, TransactionAction},
+    transaction::{Transaction, TransactionAction, TransactionState},
 };
 use tracing::{debug, error};
 
@@ -175,6 +177,27 @@ impl PointStorage {
         }?;
 
         Ok(rec.points.clone())
+    }
+
+    pub fn handle_transaction(
+        storage: Arc<Mutex<Self>>,
+        tx: Transaction,
+        mut coordinator: TcpStream,
+    ) -> Result<(), String> {
+        let mut points = storage.lock().map_err(|_| "Failed to lock storage")?;
+        let record = points.take_for(&tx);
+
+        let state = if record.is_ok() {
+            TransactionState::Proceed as u8
+        } else {
+            TransactionState::Abort as u8
+        };
+        coordinator.write_all(&[state]).map_err(|e| e.to_string())?;
+
+        let record = record?;
+        let mut record = record.lock().map_err(|_| "Failed to lock record")?;
+        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
+        record.handle_transaction(tx, coordinator)
     }
 }
 

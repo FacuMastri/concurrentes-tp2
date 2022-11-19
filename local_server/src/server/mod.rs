@@ -111,12 +111,11 @@ impl Server {
         msg: Message,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
-        let mut points = points.lock().expect("Failed to lock points");
+        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
         let tx = Transaction::new(points.addr.clone(), &msg)?;
         let record = points.take_for(&tx)?;
-        let record = record.lock();
-        drop(points);
-        let mut record = record.expect("Failed to lock record");
+        let mut record = record.lock().map_err(|_| "Failed to lock points")?;
+        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
         record.coordinate(tx)
     }
 
@@ -182,17 +181,14 @@ impl Server {
 
     fn handle_server_transaction(
         mut stream: TcpStream,
-        _points: Arc<Mutex<PointStorage>>,
+        points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
         let res = receive(&mut stream)?;
 
         let tx: Transaction =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse transaction")?;
-        debug!("RECV: {:?}", tx);
-        /*
-        let points = points.lock().map_err(|_| "Failed to lock points")?;
-        let rec = points.take_for(&tx)?;
-        */
-        Err("Not implemented".to_string())
+        debug!("Received: {:?}", tx);
+
+        PointStorage::handle_transaction(points, tx, stream)
     }
 }
