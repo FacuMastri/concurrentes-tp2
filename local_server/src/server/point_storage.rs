@@ -150,21 +150,22 @@ impl PointStorage {
         Ok(())
     }
 
-    /// Check if order can be fulfilled
-    /// Return [mutex guard/arc mutex] of the record
-    /// implement wait-die
+    /// Check if order can be fulfilled for the received transaction
+    ///
+    /// # Returns
+    /// [mutex guard/arc mutex] of the record for the client
     pub fn take_for(&mut self, tx: &Transaction) -> Result<Arc<Mutex<Points>>, String> {
-        let rec = self.get_point_record(tx.client_id);
+        let record = self.get_point_record(tx.client_id);
 
-        // wait-die
-        if let Some(etx) = rec.transaction.clone() {
+        // wait-die verification
+        if let Some(etx) = record.transaction.clone() {
             if tx.older_than(&etx) {
                 return Err("Transaction is older than the current one".to_string());
             }
         }
 
         // FIXME: point_storage is locked while waiting for this lock
-        let points = rec.points.clone();
+        let points = record.points.clone();
         let points = points.lock().unwrap();
 
         match tx.action {
@@ -186,7 +187,7 @@ impl PointStorage {
             }
         }?;
 
-        Ok(rec.points.clone())
+        Ok(record.points.clone())
     }
 
     pub fn handle_transaction(

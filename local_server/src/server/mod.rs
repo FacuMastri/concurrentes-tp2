@@ -22,6 +22,10 @@ use self::{
 };
 
 #[derive(Debug)]
+/// A server that listens for incoming connections and handles them.
+/// It is responsible for receiving and sending messages to clients.
+/// It is also responsible for storing the points.
+/// It is also responsible for synchronizing the points with other servers.
 pub struct Server {
     address: String,
     listener: TcpListener,
@@ -30,6 +34,12 @@ pub struct Server {
 }
 
 impl Server {
+    /// Creates a new server that listens on the given address.
+    ///
+    /// # Arguments
+    ///
+    /// * `address` - The address to listen on.
+    /// * `core_server_addr` - The address of any known server.
     pub fn new(address: String, core_server_addr: Option<String>) -> Server {
         let listener = TcpListener::bind(address.clone()).unwrap();
 
@@ -41,18 +51,21 @@ impl Server {
         }
     }
 
+    /// Starts listening for incoming connections spawning a new thread to listen for each connection.
     pub fn listen(mut self) -> JoinHandle<()> {
         let listener = self.listener.try_clone().unwrap();
 
         thread::spawn(move || {
             debug!("Listening on {}", self.address);
             for stream in listener.incoming() {
-                let stream = stream.unwrap();
-                self.handle_stream(stream);
+                let new_connection = stream.unwrap();
+                self.handle_stream(new_connection);
             }
         })
     }
 
+    /// Handles a stream by spawning a new thread to handle it.
+    /// The new connection could be a client (coffee machine) or another server.
     fn handle_stream(&mut self, mut stream: TcpStream) {
         let mut type_buf = [0; 1];
 
@@ -61,13 +74,14 @@ impl Server {
             .unwrap_or_else(|_| error!("Could not read from stream"));
 
         match type_buf[0] {
-            CLIENT_CONNECTION => self.spawn_connection_handler(stream),
+            CLIENT_CONNECTION => self.spawn_client_connection_handler(stream),
             SERVER_MESSAGE => self.spawn_server_message_handler(stream),
             _ => error!("Unknown message type"),
         }
     }
 
-    fn spawn_connection_handler(&mut self, stream: TcpStream) {
+    /// Spawns a new thread to handle a client connection.
+    fn spawn_client_connection_handler(&mut self, stream: TcpStream) {
         let points = self.points.clone();
         let handler = thread::spawn(move || {
             Self::connection_handler(stream, points);
@@ -76,6 +90,7 @@ impl Server {
         self.handlers.push(handler);
     }
 
+    /// Handles messages from a client connection while the connection is open.
     fn connection_handler(mut stream: TcpStream, points: Arc<Mutex<PointStorage>>) {
         let addr = stream.local_addr().unwrap().ip().to_string();
         debug!("Connection established with {}", addr);
@@ -90,6 +105,10 @@ impl Server {
         debug!("Connection closed with {}", addr);
     }
 
+    /// Handles a message from a client connection.
+    /// The message could mean the beginning of a new transaction.
+    /// The message is responded to with a message containing the points that were affected by the transaction.
+    /// The points are also synchronized with other servers.
     fn handle_client_message(
         msg: Message,
         stream: &mut TcpStream,
@@ -110,6 +129,8 @@ impl Server {
         info!("Sent response: {:?} [{}]", result, response);
     }
 
+    /// Handles a message from a client connection that needs to be distributed to other servers.
+    /// Verifies if the transaction could be completed and attempts to distribute it.
     fn handle_client_message_distributively(
         msg: Message,
         points: Arc<Mutex<PointStorage>>,
@@ -123,6 +144,7 @@ impl Server {
         record.coordinate(tx, servers)
     }
 
+    /// Spawns a new thread to handle a received message from another server.
     fn spawn_server_message_handler(&mut self, stream: TcpStream) {
         let points = self.points.clone();
         let handler = thread::spawn(move || {
@@ -132,6 +154,8 @@ impl Server {
         self.handlers.push(handler);
     }
 
+    /// Handles the received message from another server.
+    /// The message could be a request to synchronize points, a new transaction or a connection request.
     fn server_message_handler(mut stream: TcpStream, points: Arc<Mutex<PointStorage>>) {
         let mut buf = [0; 1];
 
@@ -149,23 +173,27 @@ impl Server {
         }
     }
 
+    /// Handles a connection request from another server.
+    /// The connection request is responded to with a message containing the list of all available servers.
     fn handle_server_connection(
         mut stream: TcpStream,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
         let res = receive(&mut stream)?;
 
-        let req: ConnectReq =
+        let request: ConnectReq =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse connect req")?;
 
         let mut points = points.lock().unwrap();
 
-        debug!("Connect {:?}", req.addr);
-        let res = points.add_connection(req)?;
+        debug!("Connect {:?}", request.addr);
+        let res = points.add_connection(request)?;
 
         respond(&mut stream, res)
     }
 
+    /// Handles a synchronization request from another server.
+    /// The synchronization request is responded to with a message containing the points for each client.
     fn handle_server_sync(
         mut stream: TcpStream,
         points: Arc<Mutex<PointStorage>>,
@@ -183,6 +211,7 @@ impl Server {
         respond(&mut stream, res)
     }
 
+    /// Handles a transaction from another server.
     fn handle_server_transaction(
         mut stream: TcpStream,
         points: Arc<Mutex<PointStorage>>,

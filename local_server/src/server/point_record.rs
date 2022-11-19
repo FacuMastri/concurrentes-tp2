@@ -101,8 +101,7 @@ impl Points {
         mut coordinator: TcpStream,
     ) -> Result<(), String> {
         // Already received a transaction, locked points and answered the prepare
-        // Should now wait for the commit or abort
-
+        // Should now wait for the commit (for a period of time) or abort
         coordinator
             .set_read_timeout(Some(COMMIT_TIMEOUT))
             .expect("Should not fail");
