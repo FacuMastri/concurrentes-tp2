@@ -100,7 +100,7 @@ impl Server {
             Err(_) => Self::handle_client_message_distributively(msg, points),
         };
 
-        let response = if result.is_ok() { 1 } else { 0 };
+        let response = u8::from(result.is_ok());
 
         if stream.write_all(&[response]).is_err() {
             error!("Failed to send response");
