@@ -14,7 +14,7 @@ use std::{
 };
 use tracing::{debug, error, info};
 
-use crate::server::message::{receive, respond, SyncReq};
+use crate::server::message::{receive_from, respond_to, SyncRequest};
 
 use self::{
     message::{ConnectReq, CONNECT, SYNC, TRANSACTION},
@@ -179,7 +179,7 @@ impl Server {
         mut stream: TcpStream,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
-        let res = receive(&mut stream)?;
+        let res = receive_from(&mut stream)?;
 
         let request: ConnectReq =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse connect req")?;
@@ -189,7 +189,7 @@ impl Server {
         debug!("Connect {:?}", request.addr);
         let res = points.add_connection(request)?;
 
-        respond(&mut stream, res)
+        respond_to(&mut stream, res)
     }
 
     /// Handles a synchronization request from another server.
@@ -198,9 +198,9 @@ impl Server {
         mut stream: TcpStream,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
-        let res = receive(&mut stream)?;
+        let res = receive_from(&mut stream)?;
 
-        let req: SyncReq =
+        let req: SyncRequest =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse connect req")?;
 
         let points = points.lock().unwrap();
@@ -208,7 +208,7 @@ impl Server {
         debug!("Send Sync");
         let res = points.sync(req)?;
 
-        respond(&mut stream, res)
+        respond_to(&mut stream, res)
     }
 
     /// Handles a transaction from another server.
@@ -216,7 +216,7 @@ impl Server {
         mut stream: TcpStream,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
-        let res = receive(&mut stream)?;
+        let res = receive_from(&mut stream)?;
 
         let tx: Transaction =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse transaction")?;

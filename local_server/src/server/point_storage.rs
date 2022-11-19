@@ -6,7 +6,10 @@ use std::{
 };
 
 use super::{
-    message::{connect_to, spread_connect_to, sync_with, ConnectReq, ConnectRes, SyncReq, SyncRes},
+    message::{
+        connect_to, spread_connect_to, sync_with, ConnectReq, ConnectResponse, SyncRequest,
+        SyncResponse,
+    },
     point_record::{PointRecord, Points},
     transaction::{Transaction, TransactionAction, TransactionState},
 };
@@ -120,7 +123,7 @@ impl PointStorage {
 
         self.servers.insert(req.addr);
 
-        let res = ConnectRes {
+        let res = ConnectResponse {
             servers: self.servers.clone(),
         };
 
@@ -130,8 +133,8 @@ impl PointStorage {
             serde_json::to_string(&res).map_err(|e| e.to_string())
         }
     }
-    pub fn sync(&self, _req: SyncReq) -> Result<String, String> {
-        let res = SyncRes {
+    pub fn sync(&self, _req: SyncRequest) -> Result<String, String> {
+        let res = SyncResponse {
             points: self.points.clone(),
         };
         serde_json::to_string(&res).map_err(|_| "Failed to serialize points".to_string())

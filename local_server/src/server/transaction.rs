@@ -7,7 +7,7 @@ use std::{
 use points::{Message, OrderAction};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::message::{write_to, TRANSACTION};
+use super::message::{write_message_to, TRANSACTION};
 
 pub const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
 pub const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
@@ -82,7 +82,7 @@ impl Transaction {
         tx: &Transaction,
         server: &String,
     ) -> Result<(TransactionState, TcpStream), String> {
-        let mut stream = write_to(TRANSACTION, tx, server)?;
+        let mut stream = write_message_to(TRANSACTION, tx, server)?;
         stream
             .set_read_timeout(Some(PREPARE_TIMEOUT))
             .map_err(|e| e.to_string())?;

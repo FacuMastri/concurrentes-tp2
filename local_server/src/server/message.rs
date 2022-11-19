@@ -22,19 +22,23 @@ pub struct ConnectReq {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ConnectRes {
+pub struct ConnectResponse {
     pub servers: HashSet<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SyncReq {}
+pub struct SyncRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SyncRes {
+pub struct SyncResponse {
     pub points: PointMap,
 }
 
-pub fn write_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<TcpStream, String> {
+pub fn write_message_to(
+    msg_type: u8,
+    msg: impl Serialize,
+    addr: &String,
+) -> Result<TcpStream, String> {
     let stream = TcpStream::connect(addr).map_err(|e| e.to_string())?;
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
 
@@ -58,17 +62,17 @@ pub fn write_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<TcpS
     Ok(stream)
 }
 
-pub fn send_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<String, String> {
-    let stream = write_to(msg_type, msg, addr)?;
+pub fn send_message_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<String, String> {
+    let stream = write_message_to(msg_type, msg, addr)?;
     let mut reader = BufReader::new(stream.try_clone().unwrap());
 
-    let mut res = String::new();
-    reader.read_line(&mut res).map_err(|e| e.to_string())?;
+    let mut response = String::new();
+    reader.read_line(&mut response).map_err(|e| e.to_string())?;
 
-    Ok(res)
+    Ok(response)
 }
 
-pub fn receive(stream: &mut TcpStream) -> Result<Vec<u8>, String> {
+pub fn receive_from(stream: &mut TcpStream) -> Result<Vec<u8>, String> {
     let mut len_buf = [0; 8];
     stream.read_exact(&mut len_buf).map_err(|e| e.to_string())?;
     let len = u64::from_be_bytes(len_buf);
@@ -79,7 +83,7 @@ pub fn receive(stream: &mut TcpStream) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
-pub fn respond(stream: &mut TcpStream, res: String) -> Result<(), String> {
+pub fn respond_to(stream: &mut TcpStream, res: String) -> Result<(), String> {
     debug!("Responding {:?}", res);
     stream.write_all(res.as_bytes()).map_err(|e| e.to_string())
 }
@@ -94,9 +98,10 @@ pub fn connect_to(my_addr: &String, server_addr: &String) -> Result<HashSet<Stri
         copy: false,
     };
     debug!("Sending CONNECT to {}", server_addr);
-    let res = send_to(CONNECT, msg, server_addr)?;
+    let res = send_message_to(CONNECT, msg, server_addr)?;
 
-    let res: ConnectRes = serde_json::from_str(&res).map_err(|_| "Failed to parse response")?;
+    let res: ConnectResponse =
+        serde_json::from_str(&res).map_err(|_| "Failed to parse response")?;
 
     debug!("Response: {:?}", res);
 
@@ -109,17 +114,17 @@ pub fn spread_connect_to(addr: &String, server_addr: &String) -> Result<(), Stri
         copy: true,
     };
     debug!("Spreading CONNECT to {}", server_addr);
-    send_to(CONNECT, msg, server_addr)?;
+    send_message_to(CONNECT, msg, server_addr)?;
 
     Ok(())
 }
 
 pub fn sync_with(addr: &String) -> Result<PointMap, String> {
-    let msg = SyncReq {};
+    let msg = SyncRequest {};
     debug!("Sending SYNC to {}", addr);
-    let res = send_to(SYNC, msg, addr)?;
+    let res = send_message_to(SYNC, msg, addr)?;
 
-    let res: SyncRes = serde_json::from_str(&res).map_err(|_| "Failed to parse response")?;
+    let res: SyncResponse = serde_json::from_str(&res).map_err(|_| "Failed to parse response")?;
 
     debug!("Response: {:?}", res);
 
