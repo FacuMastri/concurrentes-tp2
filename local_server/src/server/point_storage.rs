@@ -18,25 +18,25 @@ pub type PointMap = HashMap<u16, PointRecord>;
 pub struct PointStorage {
     pub points: PointMap,
     pub servers: HashSet<String>,
-    pub addr: String,
+    pub self_address: String,
 }
 
 impl PointStorage {
-    pub fn new(self_addr: String, server_addr: Option<String>) -> Arc<Mutex<Self>> {
+    pub fn new(self_address: String, server_addr: Option<String>) -> Arc<Mutex<Self>> {
         let mut servers = HashSet::new();
         let mut points = PointMap::new();
 
         if let Some(addr) = server_addr {
-            servers = connect_to(&self_addr, &addr).unwrap();
+            servers = connect_to(&self_address, &addr).unwrap();
             points = sync_with(&addr).unwrap();
         } else {
-            servers.insert(self_addr.clone());
+            servers.insert(self_address.clone());
         }
 
         Arc::new(Mutex::new(PointStorage {
             points,
             servers,
-            addr: self_addr,
+            self_address,
         }))
     }
 
@@ -131,7 +131,7 @@ impl PointStorage {
 
     pub fn spread_connection(&mut self, addr: String) -> Result<(), String> {
         for server in &self.servers {
-            if server == &addr || server == &self.addr {
+            if server == &addr || server == &self.self_address {
                 continue;
             }
             if spread_connect_to(&addr, server).is_err() {

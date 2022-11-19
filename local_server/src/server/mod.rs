@@ -112,7 +112,7 @@ impl Server {
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
         let mut points = points.lock().map_err(|_| "Failed to lock points")?;
-        let tx = Transaction::new(points.addr.clone(), &msg)?;
+        let tx = Transaction::new(points.self_address.clone(), &msg)?;
         let record = points.take_for(&tx)?;
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
         let servers = points.servers.clone();
