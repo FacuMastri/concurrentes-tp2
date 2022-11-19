@@ -24,7 +24,7 @@ pub enum TransactionAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub coordinator: String,
-    pub timestamp: u64,
+    pub timestamp: u128,
     pub client_id: u16,
     pub action: TransactionAction,
     pub points: usize,
@@ -73,8 +73,11 @@ impl Transaction {
     }
 }
 
-fn generate_timestamp() -> u64 {
-    1000
+fn generate_timestamp() -> u128 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let now = SystemTime::now();
+    let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    since_the_epoch.as_millis()
 }
 
 pub fn transaction_deserializer<'de, D>(_deserializer: D) -> Result<Option<Transaction>, D::Error>
