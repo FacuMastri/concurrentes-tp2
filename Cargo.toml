@@ -2,6 +2,7 @@
 members = [
   "coffee_maker",
   "server",
+  "controller",
   "common/util",
   "common/points"
 ]
