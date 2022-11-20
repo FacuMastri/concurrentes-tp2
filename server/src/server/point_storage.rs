@@ -13,7 +13,7 @@ use super::{
     point_record::{PointRecord, Points},
     transaction::{Transaction, TransactionAction, TransactionState},
 };
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 pub type PointMap = HashMap<u16, PointRecord>;
 
@@ -183,12 +183,14 @@ impl PointStorage {
     /// Makes the storage go offline.
     /// It wont send or receive any transactions.
     pub fn disconnect(&mut self) {
+        info!("[ DISCONNECTING ]");
         self.online = false;
     }
 
     /// Makes the storage go online.
     /// It will send and receive transactions.
     pub fn connect(&mut self) {
+        info!("[ CONNECTING ]");
         self.online = true;
     }
 }
