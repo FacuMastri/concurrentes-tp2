@@ -4,7 +4,7 @@ use std::sync::{Arc, Barrier};
 use actix::prelude::*;
 use orders::*;
 use points::parse_addr;
-use tracing::{debug, warn, Level};
+use tracing::{trace, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 const DISPENSERS: usize = 3;
@@ -74,7 +74,7 @@ async fn handle_stop(order_handler: Addr<OrderHandler>, threads: usize) -> Res {
         order_handler
             .try_send(WaitStop(Some(stop_barrier)))
             .unwrap();
-        debug!("Sent stop signal to handler {}", i);
+        trace!("Sent stop signal to handler {}", i);
     }
 
     order_handler.send(WaitStop(None)).await?;
