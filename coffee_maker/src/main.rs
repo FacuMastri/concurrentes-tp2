@@ -4,7 +4,8 @@ use std::sync::{Arc, Barrier};
 use actix::prelude::*;
 use orders::*;
 use points::parse_addr;
-use tracing::{trace, warn, Level};
+use std::process::exit;
+use tracing::{error, trace, Level};
 use tracing_subscriber::FmtSubscriber;
 
 const DISPENSERS: usize = 3;
@@ -33,8 +34,8 @@ fn parse_args() -> (String, String) {
             args[Arguments::Orders as usize].clone(),
         );
     }
-    warn!("Usage: coffee_maker <local_server> [<orders>]");
-    panic!()
+    error!("Usage: coffee_maker <local_server> [<orders>]");
+    exit(-1);
 }
 
 #[actix_rt::main]

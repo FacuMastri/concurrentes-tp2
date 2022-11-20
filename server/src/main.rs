@@ -3,21 +3,22 @@ mod threadpool;
 
 use points::parse_addr;
 use server::Server;
-use tracing::Level;
+use tracing::{error, Level};
 use tracing_subscriber::FmtSubscriber;
 
-fn parse_args() -> (String, Option<String>) {
+fn parse_args() -> Result<(String, Option<String>), ()> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 2 {
-        return (parse_addr(args[1].clone()), None);
+        return Ok((parse_addr(args[1].clone()), None));
     }
     if args.len() == 3 {
-        return (
+        return Ok((
             parse_addr(args[1].clone()),
             Some(parse_addr(args[2].clone())),
-        );
+        ));
     }
-    panic!("Usage: local_server <address> [<known_server_address>]");
+    error!("Usage: local_server <address> [<known_server_address>]");
+    Err(())
 }
 
 fn init_logger() {
@@ -31,11 +32,12 @@ fn init_logger() {
 fn main() {
     init_logger();
 
-    let (addr, core_server_addr) = parse_args();
-    let server = Server::new(addr, core_server_addr);
-    let handler = server.listen();
+    if let Ok((addr, core_server_addr)) = parse_args() {
+        let server = Server::new(addr, core_server_addr);
+        let handler = server.listen();
 
-    handler.join().unwrap();
+        handler.join().unwrap();
+    }
 }
 
 #[cfg(test)]
