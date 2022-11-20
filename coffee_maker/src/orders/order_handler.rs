@@ -53,7 +53,7 @@ impl OrderHandler {
 
     async fn handle_order(&mut self, order: Order) -> Result<(), String> {
         self.lock_points(order.clone()).await.map_err(|e| {
-            warn!("Failed to lock points");
+            warn!("Failed to lock points {:?}", order);
             e
         })?;
 
