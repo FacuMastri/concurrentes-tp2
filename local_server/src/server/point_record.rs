@@ -34,11 +34,22 @@ impl PointRecord {
 }
 
 impl Points {
-    pub fn coordinate(&mut self, tx: Transaction, servers: HashSet<String>) -> Result<(), String> {
+    /// Coordinates a transaction among all other servers
+    /// The algorithm works as follows:
+    /// 1. The coordinator sends a prepare message to all other servers
+    /// 2. Each server responds with a proceed message if it can commit the transaction
+    /// 3. If all servers (or if less than half of them timeout) respond with proceed, the coordinator sends a commit message to all server
+    /// 3.1 If any server responds with an abort, the coordinator sends an abort message to all servers
+    pub fn coordinate(
+        &mut self,
+        transaction: Transaction,
+        servers: HashSet<String>,
+    ) -> Result<(), String> {
         // PREPARE TRANSACTION
+
         let res: Vec<Result<(TransactionState, TcpStream), String>> = servers
             .par_iter()
-            .map(|server| Transaction::prepare(&tx, server))
+            .map(|server| Transaction::prepare(&transaction, server))
             .collect();
 
         // Evaluate the results. If any of the servers failed to prepare, abort the transaction.
@@ -64,6 +75,7 @@ impl Points {
             })
             .collect();
 
+        // Evaluate if the transaction should be aborted or committed
         let abort = abort > 0 || proceed < servers.len() / 2;
         let state = if abort {
             TransactionState::Abort
@@ -81,7 +93,7 @@ impl Points {
         }
 
         if abort {
-            match tx.action {
+            match transaction.action {
                 TransactionAction::Lock => Err("Transaction Aborted".to_string()),
                 _ => {
                     // Save for later
@@ -90,19 +102,21 @@ impl Points {
                 }
             }
         } else {
-            self.apply(tx);
+            self.apply(transaction);
             Ok(())
         }
     }
 
+    /// Handles a transaction waiting for a commit message or an abort message.
+    /// If the transaction is aborted, the transaction is discarded.
+    /// If the transaction is committed, the transaction is applied to the points.
     pub fn handle_transaction(
         &mut self,
-        tx: Transaction,
+        transaction: Transaction,
         mut coordinator: TcpStream,
     ) -> Result<(), String> {
         // Already received a transaction, locked points and answered the prepare
-        // Should now wait for the commit or abort
-
+        // Should now wait for the commit (for a fixed period of time) or abort
         coordinator
             .set_read_timeout(Some(COMMIT_TIMEOUT))
             .expect("Should not fail");
@@ -113,28 +127,33 @@ impl Points {
             .map_err(|e| e.to_string())?;
 
         if buf[0] == TransactionState::Proceed as u8 {
-            self.apply(tx);
+            self.apply(transaction);
             Ok(())
         } else {
             Err("Aborted Transaction".to_string())
         }
     }
 
-    pub fn apply(&mut self, tx: Transaction) {
-        match tx.action {
+    /// Applies a transaction to the points
+    /// If the transaction is a lock, the points are locked (increasing the locked points and decreasing the available points)
+    /// If the transaction is free, the points are unlocked (decreasing the locked points and increasing the available points)
+    /// If the transaction is an add, the points are added (increasing the available points)
+    /// If the transaction is a consume, the points are subtracted (decreasing the locked points)
+    pub fn apply(&mut self, transaction: Transaction) {
+        match transaction.action {
             TransactionAction::Add => {
-                self.0 += tx.points;
+                self.0 += transaction.points;
             }
             TransactionAction::Lock => {
-                self.0 -= tx.points;
-                self.1 += tx.points;
+                self.0 -= transaction.points;
+                self.1 += transaction.points;
             }
             TransactionAction::Free => {
-                self.1 -= tx.points;
-                self.0 += tx.points;
+                self.0 += transaction.points;
+                self.1 -= transaction.points;
             }
             TransactionAction::Consume => {
-                self.1 -= tx.points;
+                self.1 -= transaction.points;
             }
         }
     }

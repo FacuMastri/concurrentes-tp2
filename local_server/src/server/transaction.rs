@@ -7,7 +7,7 @@ use std::{
 use points::{Message, OrderAction};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::message::{write_to, TRANSACTION};
+use super::message::{write_message_to, TRANSACTION};
 
 pub const PREPARE_TIMEOUT: Duration = Duration::from_millis(1000);
 pub const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
@@ -37,6 +37,8 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    /// Creates a new transaction with the given coordinator as the origin address and
+    /// the given message as the transaction action.
     pub fn new(coordinator: String, msg: &Message) -> Result<Transaction, String> {
         let err = Err("Invalid message for transaction".to_string());
 
@@ -70,6 +72,9 @@ impl Transaction {
         })
     }
 
+    /// Compares the given transaction's timestamp with this transaction's timestamp.
+    /// Returns true if the given transaction's timestamp is greater than this transaction's timestamp.
+    /// In case of a tie, the transaction with the lower coordinator is considered greater.
     pub fn older_than(&self, other: &Transaction) -> bool {
         if self.timestamp == other.timestamp {
             self.coordinator < other.coordinator
@@ -78,11 +83,12 @@ impl Transaction {
         }
     }
 
+    /// Sends a transaction message to the given server address.
     pub fn prepare(
-        tx: &Transaction,
+        transaction: &Transaction,
         server: &String,
     ) -> Result<(TransactionState, TcpStream), String> {
-        let mut stream = write_to(TRANSACTION, tx, server)?;
+        let mut stream = write_message_to(TRANSACTION, transaction, server)?;
         stream
             .set_read_timeout(Some(PREPARE_TIMEOUT))
             .map_err(|e| e.to_string())?;
@@ -99,6 +105,7 @@ impl Transaction {
         }
     }
 
+    /// Sends a transaction state message to the given stream.
     pub fn finalize(stream: &mut TcpStream, state: TransactionState) -> Result<(), String> {
         stream.write_all(&[state as u8]).map_err(|e| e.to_string())
     }
