@@ -3,12 +3,14 @@ use std::{
     io::Write,
     net::TcpStream,
     sync::{Arc, Mutex},
+    thread,
+    time::Duration,
 };
 
 use super::{
     message::{
         connect_to, spread_connect_to, sync_with, ConnectRequest, ConnectResponse, SyncRequest,
-        SyncResponse,
+        SyncResponse, TIMEOUT,
     },
     point_record::{PointRecord, Points},
     transaction::{Transaction, TransactionAction, TransactionState},
@@ -77,6 +79,7 @@ impl PointStorage {
     /// Adds a new server to the point storage.
     /// It will also spread the new server to all other servers if the request is not a copy.
     pub fn add_connection(&mut self, request: ConnectRequest) -> Result<String, String> {
+        self.check_online()?;
         debug!("Adding connection: {:?}", &request.addr);
 
         if !request.copy {
@@ -98,6 +101,7 @@ impl PointStorage {
 
     /// Creates and serializes a new sync response with the current points.
     pub fn sync(&self, _req: SyncRequest) -> Result<String, String> {
+        self.check_online()?;
         let res = SyncResponse {
             points: self.points.clone(),
         };
@@ -165,6 +169,7 @@ impl PointStorage {
         mut coordinator: TcpStream,
     ) -> Result<(), String> {
         let mut points = storage.lock().map_err(|_| "Failed to lock storage")?;
+        points.check_online()?;
         let record = points.take_for(&transaction);
 
         let state = if record.is_ok() {
@@ -192,6 +197,15 @@ impl PointStorage {
     pub fn connect(&mut self) {
         info!("[ CONNECTING ]");
         self.online = true;
+    }
+
+    pub fn check_online(&self) -> Result<(), String> {
+        if self.online {
+            Ok(())
+        } else {
+            thread::sleep(Duration::from_millis(TIMEOUT + TIMEOUT / 10));
+            Err("Storage is offline".to_string())
+        }
     }
 }
 
