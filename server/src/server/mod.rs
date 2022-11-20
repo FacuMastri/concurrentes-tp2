@@ -298,7 +298,7 @@ impl Server {
             match op {
                 Ok(TxOk::Finalized) => {}
                 _ => {
-                    thread::sleep(Duration::from_millis(2000));
+                    thread::sleep(Duration::from_millis(1000));
                 }
             }
         }

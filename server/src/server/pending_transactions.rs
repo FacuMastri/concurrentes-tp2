@@ -10,6 +10,7 @@ use super::transaction::Transaction;
 pub struct PendingTransactions {
     transactions: Mutex<VecDeque<Transaction>>,
     semaphore: Semaphore,
+    online: Semaphore,
 }
 
 impl std::fmt::Debug for PendingTransactions {
@@ -25,6 +26,7 @@ impl PendingTransactions {
         Arc::new(Self {
             transactions: Mutex::new(VecDeque::new()),
             semaphore: Semaphore::new(0),
+            online: Semaphore::new(1),
         })
     }
 
@@ -42,6 +44,8 @@ impl PendingTransactions {
     /// Returns the next transaction in the queue.
     /// If there are no transactions, the thread will be blocked until there is one.
     pub fn pop(&self) -> Result<Transaction, String> {
+        self.online.acquire();
+        self.online.release();
         self.semaphore.acquire();
         let mut txs = self
             .transactions
@@ -49,6 +53,14 @@ impl PendingTransactions {
             .expect("Could not lock transactions");
         txs.pop_front()
             .ok_or_else(|| "Could not pop transaction".to_string())
+    }
+
+    pub fn disconnect(&self) {
+        self.online.acquire();
+    }
+
+    pub fn connect(&self) {
+        self.online.release();
     }
 }
 

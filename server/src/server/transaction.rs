@@ -15,6 +15,7 @@ pub const COMMIT_TIMEOUT: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Clone)]
 pub enum TransactionState {
+    Disconnected,
     Abort,
     Proceed,
     Timeout,

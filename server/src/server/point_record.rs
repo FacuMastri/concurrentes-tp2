@@ -14,7 +14,7 @@ use std::{
     net::TcpStream,
     sync::{Arc, Mutex},
 };
-use tracing::{debug, error, info, warn};
+use tracing::{info, warn};
 
 /// Points tuple: available points, locked points
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,9 +53,9 @@ impl Points {
         transaction: Transaction,
         servers: HashSet<String>,
         online: bool,
-    ) -> Result<(bool, Vec<Result<TcpStream, String>>), String> {
+    ) -> Result<(TransactionState, Vec<Result<TcpStream, String>>), String> {
         if !online {
-            return Ok((true, vec![]));
+            return Ok((TransactionState::Disconnected, vec![]));
         }
 
         // PREPARE TRANSACTION
@@ -87,8 +87,17 @@ impl Points {
             .collect();
 
         // Evaluate if the transaction should be aborted or committed
+        if abort == 0 && proceed == 0 {
+            return Ok((TransactionState::Disconnected, streams));
+        }
+
         let abort = abort > 0 || proceed < servers.len() / 2;
-        Ok((abort, streams))
+        let state = if abort {
+            TransactionState::Abort
+        } else {
+            TransactionState::Proceed
+        };
+        Ok((state, streams))
     }
 
     /// Coordinates a transaction among all other servers
@@ -105,13 +114,7 @@ impl Points {
         pending: Arc<PendingTransactions>,
     ) -> Result<TxOk, String> {
         // PREPARE TRANSACTION
-        let (abort, streams) = self.prepare(transaction.clone(), servers, online)?;
-
-        let state = if abort {
-            TransactionState::Abort
-        } else {
-            TransactionState::Proceed
-        };
+        let (state, streams) = self.prepare(transaction.clone(), servers, online)?;
 
         // FINALIZE TRANSACTION
         for stream in streams {
@@ -125,17 +128,33 @@ impl Points {
             }
         }
 
-        if abort {
-            match transaction.action {
-                TransactionAction::Lock => Err("Transaction Aborted".to_string()),
-                _ => {
-                    pending.add(transaction)?;
-                    Ok(TxOk::Pending)
+        match state {
+            TransactionState::Proceed => {
+                pending.connect();
+                self.apply(transaction);
+                Ok(TxOk::Finalized)
+            }
+            TransactionState::Abort => {
+                pending.connect();
+                match transaction.action {
+                    TransactionAction::Lock => Err("Transaction Aborted".to_string()),
+                    _ => {
+                        pending.add(transaction)?;
+                        Ok(TxOk::Pending)
+                    }
                 }
             }
-        } else {
-            self.apply(transaction);
-            Ok(TxOk::Finalized)
+            TransactionState::Disconnected => {
+                pending.disconnect();
+                match transaction.action {
+                    TransactionAction::Lock => Err("Transaction Aborted".to_string()),
+                    _ => {
+                        pending.add(transaction)?;
+                        Ok(TxOk::Pending)
+                    }
+                }
+            }
+            _ => Err("Invalid TransactionState".to_string()),
         }
     }
 
