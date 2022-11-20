@@ -12,6 +12,7 @@ use super::{
         connect_to, spread_connect_to, sync_with, ConnectRequest, ConnectResponse, SyncRequest,
         SyncResponse, TIMEOUT,
     },
+    pending_transactions::PendingTransactions,
     point_record::{PointRecord, Points},
     transaction::{Transaction, TransactionAction, TransactionState},
 };
@@ -25,6 +26,7 @@ pub struct PointStorage {
     pub servers: HashSet<String>,
     pub self_address: String,
     pub online: bool,
+    pub pending: Arc<PendingTransactions>,
 }
 
 impl PointStorage {
@@ -56,6 +58,7 @@ impl PointStorage {
             servers,
             self_address,
             online: true,
+            pending: PendingTransactions::new(),
         }))
     }
 

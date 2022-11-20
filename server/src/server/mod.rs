@@ -1,4 +1,5 @@
 mod message;
+mod pending_transactions;
 mod point_record;
 mod point_storage;
 mod transaction;
@@ -157,8 +158,9 @@ impl Server {
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
         let servers = points.get_other_servers();
         let online = points.online;
+        let pending = points.pending.clone();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        record.coordinate(tx, servers, online)
+        record.coordinate(tx, servers, online, pending)
     }
 
     /// Spawns a new thread to handle a received message from another server.
