@@ -1,5 +1,8 @@
-use super::transaction::{
-    transaction_deserializer, Transaction, TransactionAction, TransactionState, COMMIT_TIMEOUT,
+use super::{
+    pending_transactions::PendingTransactions,
+    transaction::{
+        transaction_deserializer, Transaction, TransactionAction, TransactionState, COMMIT_TIMEOUT,
+    },
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -42,6 +45,8 @@ impl fmt::Debug for PointRecord {
 }
 
 impl Points {
+    /// Prepares the transaction
+    /// Returns (abort, streams)
     fn prepare(
         &mut self,
         transaction: Transaction,
@@ -98,6 +103,7 @@ impl Points {
         transaction: Transaction,
         servers: HashSet<String>,
         online: bool,
+        pending: Arc<PendingTransactions>,
     ) -> Result<(), String> {
         // PREPARE TRANSACTION
         let (abort, streams) = self.prepare(transaction.clone(), servers, online)?;
@@ -120,12 +126,7 @@ impl Points {
         if abort {
             match transaction.action {
                 TransactionAction::Lock => Err("Transaction Aborted".to_string()),
-                _ => {
-                    // TODO: handle abort
-                    // Save for later
-                    // Ok(())
-                    Err("Not implemented".to_string())
-                }
+                _ => pending.add(transaction),
             }
         } else {
             self.apply(transaction);
