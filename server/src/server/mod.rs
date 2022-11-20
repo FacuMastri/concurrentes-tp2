@@ -139,7 +139,6 @@ impl Server {
         };
 
         let response = u8::from(result.is_ok());
-
         if stream.write_all(&[response]).is_err() {
             error!("Failed to send response");
         };
