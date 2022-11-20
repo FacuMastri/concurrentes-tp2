@@ -4,7 +4,7 @@ use super::*;
 use actix::prelude::*;
 use futures::executor::block_on;
 use rand::Rng;
-use tracing::debug;
+use tracing::{debug, info, trace, warn};
 
 const SUCCESS_CHANCE: f64 = 0.5;
 const ORDER_MILLIS: u64 = 1000;
@@ -52,13 +52,19 @@ impl OrderHandler {
     }
 
     async fn handle_order(&mut self, order: Order) -> Result<(), String> {
-        self.lock_points(order.clone()).await?;
+        self.lock_points(order.clone()).await.map_err(|e| {
+            warn!("Failed to Lock {:?}", order);
+            e
+        })?;
 
         if self.process_order().is_err() {
+            warn!("Failed {:?}", order);
             self.free_points(order).await?;
             Err(String::from("Order failed"))
         } else {
-            self.commit_points(order).await
+            self.commit_points(order.clone()).await?;
+            info!("Succeeded {:?}", order);
+            Ok(())
         }
     }
 }
@@ -78,9 +84,9 @@ impl Handler<WaitStop> for OrderHandler {
     fn handle(&mut self, msg: WaitStop, _ctx: &mut SyncContext<Self>) -> Self::Result {
         match msg.0 {
             Some(barrier) => {
-                debug!("Waiting for stop signal...");
+                trace!("Waiting for stop signal...");
                 barrier.wait();
-                debug!("Done");
+                trace!("Done");
             }
             None => {
                 debug!("Done");

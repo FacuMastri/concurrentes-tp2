@@ -3,7 +3,8 @@ use std::sync::{Arc, Barrier};
 
 use actix::prelude::*;
 use orders::*;
-use tracing::{debug, warn, Level};
+use points::parse_addr;
+use tracing::{trace, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 const DISPENSERS: usize = 3;
@@ -21,14 +22,14 @@ fn parse_args() -> (String, String) {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 2 {
         return (
-            args[Arguments::LocalServer as usize].clone(),
+            parse_addr(args[Arguments::LocalServer as usize].clone()),
             DEFAULT_ORDERS.to_string(),
         );
     }
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 3 {
         return (
-            args[Arguments::LocalServer as usize].clone(),
+            parse_addr(args[Arguments::LocalServer as usize].clone()),
             args[Arguments::Orders as usize].clone(),
         );
     }
@@ -73,7 +74,7 @@ async fn handle_stop(order_handler: Addr<OrderHandler>, threads: usize) -> Res {
         order_handler
             .try_send(WaitStop(Some(stop_barrier)))
             .unwrap();
-        debug!("Sent stop signal to handler {}", i);
+        trace!("Sent stop signal to handler {}", i);
     }
 
     order_handler.send(WaitStop(None)).await?;

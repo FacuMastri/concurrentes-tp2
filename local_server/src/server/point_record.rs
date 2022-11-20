@@ -5,6 +5,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
+    fmt,
     io::Read,
     net::TcpStream,
     sync::{Arc, Mutex},
@@ -15,7 +16,7 @@ use tracing::debug;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Points(pub usize, pub usize);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PointRecord {
     // available points / locked points
     pub points: Arc<Mutex<Points>>,
@@ -30,6 +31,13 @@ impl PointRecord {
             points: Arc::new(Mutex::new(Points(0, 0))),
             transaction: None,
         }
+    }
+}
+
+impl fmt::Debug for PointRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let points = self.points.lock().map_err(|_| fmt::Error)?;
+        write!(f, "{:?} [{:?}]", points.0, points.1)
     }
 }
 
