@@ -54,13 +54,24 @@ impl PointStorage {
             servers.insert(self_address.clone());
         }
 
-        Arc::new(Mutex::new(PointStorage {
+        let res = Arc::new(Mutex::new(PointStorage {
             points,
             servers,
             self_address,
             online: true,
             pending: PendingTransactions::new(),
-        }))
+        }));
+        /*
+        let ref1 = res.clone();
+        let ref2 = res.clone();
+        let ref2 = ref2.lock().unwrap();
+
+        ref2.pending.set_on_connect(move ||{
+            let mut points = ref1.lock().unwrap();
+            debug!()
+        });*/
+
+        res
     }
 
     /// Gets the point record for the given id.
