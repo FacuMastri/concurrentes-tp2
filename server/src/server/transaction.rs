@@ -6,6 +6,7 @@ use std::{
 
 use points::{Message, OrderAction};
 use serde::{Deserialize, Deserializer, Serialize};
+use tracing::debug;
 
 use super::message::{write_message_to, TRANSACTION};
 
@@ -45,20 +46,33 @@ impl Transaction {
     /// Creates a new transaction with the given coordinator as the origin address and
     /// the given message as the transaction action.
     pub fn new(coordinator: String, msg: &Message) -> Result<Transaction, String> {
+        debug!("Coordinator {} creating new transaction.", coordinator);
         let err = Err("Invalid message for transaction".to_string());
 
         let action = match msg {
             Message::LockOrder(order) => match order.action {
                 OrderAction::FillPoints(_) => err,
-                OrderAction::UsePoints(_) => Ok(TransactionAction::Lock),
+                OrderAction::UsePoints(_) => {
+                    debug!("Transaction type is LOCK.");
+                    Ok(TransactionAction::Lock)
+                }
             },
             Message::FreeOrder(order) => match order.action {
                 OrderAction::FillPoints(_) => err,
-                OrderAction::UsePoints(_) => Ok(TransactionAction::Free),
+                OrderAction::UsePoints(_) => {
+                    debug!("Transaction type is FREE.");
+                    Ok(TransactionAction::Free)
+                }
             },
             Message::CommitOrder(order) => match order.action {
-                OrderAction::FillPoints(_) => Ok(TransactionAction::Add),
-                OrderAction::UsePoints(_) => Ok(TransactionAction::Consume),
+                OrderAction::FillPoints(_) => {
+                    debug!("Transaction type is ADD.");
+                    Ok(TransactionAction::Add)
+                }
+                OrderAction::UsePoints(_) => {
+                    debug!("Transaction type is CONSUME.");
+                    Ok(TransactionAction::Consume)
+                }
             },
         }?;
 
@@ -136,7 +150,7 @@ mod tests {
 
     use super::*;
     #[test]
-    fn test_transaction() {
+    fn test_transaction_timestamps() {
         let order = Order::new(1, OrderAction::UsePoints(123));
         let message = Message::LockOrder(order);
         let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
@@ -147,5 +161,21 @@ mod tests {
             Transaction::new("127.0.0.1:9002".to_string(), &other_message).unwrap();
 
         assert_eq!(true, transaction.older_than(&other_transaction));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_transaction_err() {
+        let order = Order::new(1, OrderAction::FillPoints(42));
+        let message = Message::LockOrder(order);
+        Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_transaction_err_2() {
+        let order = Order::new(1, OrderAction::FillPoints(42));
+        let message = Message::FreeOrder(order);
+        Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
     }
 }
