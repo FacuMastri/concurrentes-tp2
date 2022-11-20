@@ -6,7 +6,7 @@ use std::{
 
 use points::{Message, OrderAction};
 use serde::{Deserialize, Deserializer, Serialize};
-use tracing::{debug, trace};
+use tracing::debug;
 
 use super::message::{write_message_to, TRANSACTION};
 
