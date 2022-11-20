@@ -11,6 +11,8 @@ pub struct PendingTransactions {
     transactions: Mutex<VecDeque<Transaction>>,
     semaphore: Semaphore,
     online: Semaphore,
+    connected: Mutex<bool>,
+    on_connect: fn() -> (),
 }
 
 impl std::fmt::Debug for PendingTransactions {
@@ -27,7 +29,13 @@ impl PendingTransactions {
             transactions: Mutex::new(VecDeque::new()),
             semaphore: Semaphore::new(0),
             online: Semaphore::new(1),
+            connected: Mutex::new(true),
+            on_connect: || {},
         })
+    }
+
+    pub fn set_on_connect(&mut self, on_connect: fn() -> ()) {
+        self.on_connect = on_connect;
     }
 
     /// Adds an transaction to the queue.
@@ -56,11 +64,20 @@ impl PendingTransactions {
     }
 
     pub fn disconnect(&self) {
-        self.online.acquire();
+        let mut connected = self.connected.lock().expect("Could not lock connected");
+        if *connected {
+            self.online.acquire();
+            *connected = false;
+        }
     }
 
     pub fn connect(&self) {
-        self.online.release();
+        let mut connected = self.connected.lock().expect("Could not lock connected");
+        if !*connected {
+            (self.on_connect)();
+            self.online.release();
+            *connected = true;
+        }
     }
 }
 
