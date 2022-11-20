@@ -71,10 +71,6 @@ impl Server {
         let handler = thread::spawn(move || loop {
             std::thread::sleep(std::time::Duration::from_millis(interval));
             let points = points.lock().unwrap();
-            // TODO: get a better way to print the points & drop the lock
-            // let log = points.log();
-            // drop(points);
-            // debug!("{}", log);
             debug!("{:#?}", points);
         });
         self.handlers.push(handler);

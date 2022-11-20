@@ -72,62 +72,6 @@ impl PointStorage {
             .collect()
     }
 
-    /* FIXME: maybe this is not needed
-    fn add_points(point_map: &mut PointMap, client_id: u16, points: usize) -> Result<(), String> {
-        *point_map.entry(client_id).or_insert(0) += points;
-        Ok(())
-    }
-
-    fn remove_points(
-        point_map: &mut PointMap,
-        client_id: u16,
-        points: usize,
-    ) -> Result<(), String> {
-        if !point_map.contains_key(&client_id) {
-            return Err("Client not found".to_string());
-        }
-        let actual_points = point_map.get(&client_id).unwrap();
-        if *actual_points < points {
-            return Err("Not enough points".to_string());
-        }
-        point_map.entry(client_id).and_modify(|e| *e -= points);
-        Ok(())
-    }
-    */
-
-    /*  FIXME: delete this
-        pub fn lock_order(&mut self, order: Order) -> Result<(), String> {
-            let _client_id = order.client_id;
-            match order.action {
-                OrderAction::FillPoints(_points) => Ok(()),
-                OrderAction::UsePoints(_points) => Ok(()),
-            }
-        }
-
-        pub fn free_order(&mut self, order: Order) -> Result<(), String> {
-            let _client_id = order.client_id;
-            match order.action {
-                OrderAction::FillPoints(_points) => Ok(()),
-                OrderAction::UsePoints(_points) => Ok(()),
-            }
-        }
-
-        pub fn commit_order(&mut self, order: Order) -> Result<(), String> {
-            let _client_id = order.client_id;
-            match order.action {
-                OrderAction::FillPoints(_points) => Ok(()),
-                OrderAction::UsePoints(_points) => Ok(()),
-            }
-        }
-
-        pub fn handle_message(&mut self, msg: ClientMessage) -> Result<(), String> {
-            match msg {
-                ClientMessage::LockOrder(order) => self.lock_order(order),
-                ClientMessage::FreeOrder(order) => self.free_order(order),
-                ClientMessage::CommitOrder(order) => self.commit_order(order),
-            }
-        }
-    */
     /// Adds a new server to the point storage.
     /// It will also spread the new server to all other servers if the request is not a copy.
     pub fn add_connection(&mut self, request: ConnectRequest) -> Result<String, String> {
