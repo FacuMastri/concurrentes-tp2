@@ -124,3 +124,23 @@ where
 {
     Ok(None)
 }
+
+#[cfg(test)]
+mod tests {
+    use points::Order;
+
+    use super::*;
+    #[test]
+    fn test_transaction() {
+        let order = Order::new(1, OrderAction::UsePoints(123));
+        let message = Message::LockOrder(order);
+        let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
+
+        let other_order = Order::new(1, OrderAction::UsePoints(123));
+        let other_message = Message::LockOrder(other_order);
+        let other_transaction =
+            Transaction::new("127.0.0.1:9002".to_string(), &other_message).unwrap();
+
+        assert_eq!(true, transaction.older_than(&other_transaction));
+    }
+}
