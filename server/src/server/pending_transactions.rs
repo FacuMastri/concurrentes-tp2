@@ -51,3 +51,24 @@ impl PendingTransactions {
             .ok_or_else(|| "Could not pop transaction".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use points::{Message, Order, OrderAction};
+
+    use super::*;
+    #[test]
+    fn test_add_transactions() {
+        let pending_transactions = PendingTransactions::new();
+        let order = Order::new(1, OrderAction::UsePoints(123));
+        let message = Message::LockOrder(order);
+        let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
+
+        let _ = pending_transactions.add(transaction.clone());
+        assert_eq!(pending_transactions.transactions.lock().unwrap().len(), 1);
+
+        let my_transaction = pending_transactions.pop().unwrap();
+        assert_eq!(&transaction.clone().client_id, &my_transaction.client_id);
+        assert_eq!(&transaction.points, &my_transaction.points);
+    }
+}
