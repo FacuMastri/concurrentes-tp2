@@ -42,17 +42,16 @@ impl fmt::Debug for PointRecord {
 }
 
 impl Points {
-    /// Coordinates a transaction among all other servers
-    /// The algorithm works as follows:
-    /// 1. The coordinator sends a prepare message to all other servers
-    /// 2. Each server responds with a proceed message if it can commit the transaction
-    /// 3. If all servers (or if less than half of them timeout) respond with proceed, the coordinator sends a commit message to all server
-    /// 3.1 If any server responds with an abort, the coordinator sends an abort message to all servers
-    pub fn coordinate(
+    fn prepare(
         &mut self,
         transaction: Transaction,
         servers: HashSet<String>,
-    ) -> Result<(), String> {
+        online: bool,
+    ) -> Result<(bool, Vec<Result<TcpStream, String>>), String> {
+        if !online {
+            return Ok((true, vec![]));
+        }
+
         // PREPARE TRANSACTION
 
         let res: Vec<Result<(TransactionState, TcpStream), String>> = servers
@@ -85,6 +84,24 @@ impl Points {
 
         // Evaluate if the transaction should be aborted or committed
         let abort = abort > 0 || proceed < servers.len() / 2;
+        Ok((abort, streams))
+    }
+
+    /// Coordinates a transaction among all other servers
+    /// The algorithm works as follows:
+    /// 1. The coordinator sends a prepare message to all other servers
+    /// 2. Each server responds with a proceed message if it can commit the transaction
+    /// 3. If all servers (or if less than half of them timeout) respond with proceed, the coordinator sends a commit message to all server
+    /// 3.1 If any server responds with an abort, the coordinator sends an abort message to all servers
+    pub fn coordinate(
+        &mut self,
+        transaction: Transaction,
+        servers: HashSet<String>,
+        online: bool,
+    ) -> Result<(), String> {
+        // PREPARE TRANSACTION
+        let (abort, streams) = self.prepare(transaction.clone(), servers, online)?;
+
         let state = if abort {
             TransactionState::Abort
         } else {

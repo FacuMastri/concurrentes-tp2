@@ -156,8 +156,9 @@ impl Server {
         let record = points.take_for(&tx)?;
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
         let servers = points.get_other_servers();
+        let online = points.online;
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        record.coordinate(tx, servers)
+        record.coordinate(tx, servers, online)
     }
 
     /// Spawns a new thread to handle a received message from another server.
