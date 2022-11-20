@@ -131,7 +131,7 @@ impl ThreadPoolSharedData {
         self.queued_count.load(Ordering::SeqCst) > 0 || self.active_count.load(Ordering::SeqCst) > 0
     }
 
-    #[allow(unused_must_use)] // TODO: verify this @Facu
+    #[allow(unused_must_use)]
     fn no_work_notify_all(&self) {
         if !self.has_work() {
             self.empty_trigger

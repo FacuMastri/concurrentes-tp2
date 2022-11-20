@@ -47,7 +47,6 @@ impl OrderAction {
 
 pub const ORDER_BUFFER_SIZE: usize = 6;
 
-// TODO: better use of bytes
 impl From<Order> for [u8; ORDER_BUFFER_SIZE] {
     fn from(order: Order) -> Self {
         let mut buf = [0; ORDER_BUFFER_SIZE];
