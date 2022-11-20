@@ -13,3 +13,4 @@ num_cpus = "1.14.0"
 points = {path="../common/points"}
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
+std-semaphore = "0.1"
