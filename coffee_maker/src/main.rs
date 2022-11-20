@@ -3,6 +3,7 @@ use std::sync::{Arc, Barrier};
 
 use actix::prelude::*;
 use orders::*;
+use points::parse_addr;
 use tracing::{debug, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -21,14 +22,14 @@ fn parse_args() -> (String, String) {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 2 {
         return (
-            args[Arguments::LocalServer as usize].clone(),
+            parse_addr(args[Arguments::LocalServer as usize].clone()),
             DEFAULT_ORDERS.to_string(),
         );
     }
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 3 {
         return (
-            args[Arguments::LocalServer as usize].clone(),
+            parse_addr(args[Arguments::LocalServer as usize].clone()),
             args[Arguments::Orders as usize].clone(),
         );
     }

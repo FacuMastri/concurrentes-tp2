@@ -1,17 +1,10 @@
 mod server;
 mod threadpool;
 
+use points::parse_addr;
 use server::Server;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
-
-fn parse_addr(addr_or_port: String) -> String {
-    if addr_or_port.contains(':') {
-        addr_or_port
-    } else {
-        format!("localhost:{}", addr_or_port)
-    }
-}
 
 fn parse_args() -> (String, Option<String>) {
     let args: Vec<String> = std::env::args().collect();
