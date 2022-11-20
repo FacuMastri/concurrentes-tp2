@@ -199,16 +199,17 @@ mod tests {
         let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
         points.apply(transaction);
         assert_eq!(100, points.0);
+        assert_eq!(0, points.1);
     }
 
     #[test]
     fn test_lock_points() {
-        let mut points = Points(500, 0);
+        let mut points = Points(100, 0);
         let order = Order::new(1, OrderAction::UsePoints(100));
         let message = Message::LockOrder(order);
         let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
         points.apply(transaction);
-        assert_eq!(400, points.0);
+        assert_eq!(0, points.0);
         assert_eq!(100, points.1);
     }
 
@@ -220,6 +221,17 @@ mod tests {
         let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
         points.apply(transaction);
         assert_eq!(100, points.0);
+        assert_eq!(0, points.1);
+    }
+
+    #[test]
+    fn test_consume_points() {
+        let mut points = Points(0, 100);
+        let order = Order::new(1, OrderAction::UsePoints(100));
+        let message = Message::CommitOrder(order);
+        let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
+        points.apply(transaction);
+        assert_eq!(0, points.0);
         assert_eq!(0, points.1);
     }
 }
