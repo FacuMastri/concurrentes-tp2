@@ -131,7 +131,7 @@ mod tests {
 
     use super::*;
     #[test]
-    fn test_transaction() {
+    fn test_transaction_timestamps() {
         let order = Order::new(1, OrderAction::UsePoints(123));
         let message = Message::LockOrder(order);
         let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
@@ -142,5 +142,13 @@ mod tests {
             Transaction::new("127.0.0.1:9002".to_string(), &other_message).unwrap();
 
         assert_eq!(true, transaction.older_than(&other_transaction));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_transaction_err() {
+        let order = Order::new(1, OrderAction::FillPoints(42));
+        let message = Message::LockOrder(order);
+        Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
     }
 }
