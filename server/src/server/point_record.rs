@@ -211,4 +211,15 @@ mod tests {
         assert_eq!(400, points.0);
         assert_eq!(100, points.1);
     }
+
+    #[test]
+    fn test_free_points() {
+        let mut points = Points(0, 100);
+        let order = Order::new(1, OrderAction::UsePoints(100));
+        let message = Message::FreeOrder(order);
+        let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
+        points.apply(transaction);
+        assert_eq!(100, points.0);
+        assert_eq!(0, points.1);
+    }
 }
