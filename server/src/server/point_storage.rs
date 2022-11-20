@@ -189,7 +189,7 @@ impl PointStorage {
 
         let state = if record.is_ok() {
             debug!(
-                "Sending APROVE message to coordinator for transaction with timestamp {}.",
+                "Sending APPROVE message to coordinator for transaction with timestamp {}.",
                 transaction.timestamp
             );
             TransactionState::Proceed as u8
