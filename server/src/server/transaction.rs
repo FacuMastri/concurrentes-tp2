@@ -27,6 +27,11 @@ pub enum TransactionAction {
     Consume,
 }
 
+pub enum TxOk {
+    Finalized,
+    Pending,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub coordinator: String,

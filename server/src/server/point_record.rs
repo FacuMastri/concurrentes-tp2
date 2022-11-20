@@ -1,7 +1,8 @@
 use super::{
     pending_transactions::PendingTransactions,
     transaction::{
-        transaction_deserializer, Transaction, TransactionAction, TransactionState, COMMIT_TIMEOUT,
+        transaction_deserializer, Transaction, TransactionAction, TransactionState, TxOk,
+        COMMIT_TIMEOUT,
     },
 };
 use rayon::prelude::*;
@@ -104,7 +105,7 @@ impl Points {
         servers: HashSet<String>,
         online: bool,
         pending: Arc<PendingTransactions>,
-    ) -> Result<(), String> {
+    ) -> Result<TxOk, String> {
         // PREPARE TRANSACTION
         let (abort, streams) = self.prepare(transaction.clone(), servers, online)?;
 
@@ -126,11 +127,14 @@ impl Points {
         if abort {
             match transaction.action {
                 TransactionAction::Lock => Err("Transaction Aborted".to_string()),
-                _ => pending.add(transaction),
+                _ => {
+                    pending.add(transaction)?;
+                    Ok(TxOk::Pending)
+                }
             }
         } else {
             self.apply(transaction);
-            Ok(())
+            Ok(TxOk::Finalized)
         }
     }
 

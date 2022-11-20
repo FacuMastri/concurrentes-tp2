@@ -15,6 +15,7 @@ use std::{
     net::{TcpListener, TcpStream},
     sync::{Arc, Mutex},
     thread::{self, JoinHandle},
+    time::Duration,
 };
 use tracing::{debug, error, info};
 
@@ -22,7 +23,7 @@ use crate::server::message::{receive_from, respond_to, SyncRequest};
 
 use self::{
     message::{ConnectRequest, CONNECT, SYNC, TRANSACTION},
-    transaction::Transaction,
+    transaction::{Transaction, TxOk},
 };
 
 #[derive(Debug)]
@@ -60,6 +61,7 @@ impl Server {
         let listener = self.listener.try_clone().unwrap();
 
         self.spawn_logger(3000);
+        self.spawn_pending_handler();
 
         thread::spawn(move || {
             debug!("Listening on {}", self.address);
@@ -152,15 +154,8 @@ impl Server {
         msg: Message,
         points: Arc<Mutex<PointStorage>>,
     ) -> Result<(), String> {
-        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
-        let tx = Transaction::new(points.self_address.clone(), &msg)?;
-        let record = points.take_for(&tx)?;
-        let mut record = record.lock().map_err(|_| "Failed to lock points")?;
-        let servers = points.get_other_servers();
-        let online = points.online;
-        let pending = points.pending.clone();
-        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        record.coordinate(tx, servers, online, pending)
+        PointStorage::coordinate_msg(msg, points)?;
+        Ok(())
     }
 
     /// Spawns a new thread to handle a received message from another server.
@@ -263,6 +258,33 @@ impl Server {
                 points.connect();
             }
             _ => {}
+        }
+    }
+
+    fn spawn_pending_handler(&mut self) {
+        let points = self.points.clone();
+        let handler = thread::spawn(move || {
+            Self::pending_handler(points);
+        });
+
+        self.handlers.push(handler);
+    }
+
+    fn pending_handler(points: Arc<Mutex<PointStorage>>) {
+        let point_lock = points.lock().expect("Failed to lock points");
+        let pending = point_lock.pending.clone();
+        drop(point_lock);
+
+        loop {
+            let points = points.clone();
+            let tx = pending.pop().unwrap();
+            let op = PointStorage::coordinate_tx(tx, points);
+            match op {
+                Ok(TxOk::Finalized) => {}
+                _ => {
+                    thread::sleep(Duration::from_millis(2000));
+                }
+            }
         }
     }
 }

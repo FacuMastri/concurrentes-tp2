@@ -41,7 +41,7 @@ impl PendingTransactions {
 
     /// Returns the next transaction in the queue.
     /// If there are no transactions, the thread will be blocked until there is one.
-    pub fn _pop(&self) -> Result<Transaction, String> {
+    pub fn pop(&self) -> Result<Transaction, String> {
         self.semaphore.acquire();
         let mut txs = self
             .transactions

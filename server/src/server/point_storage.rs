@@ -14,8 +14,9 @@ use super::{
     },
     pending_transactions::PendingTransactions,
     point_record::{PointRecord, Points},
-    transaction::{Transaction, TransactionAction, TransactionState},
+    transaction::{Transaction, TransactionAction, TransactionState, TxOk},
 };
+use points::Message;
 use tracing::{debug, error, info};
 
 pub type PointMap = HashMap<u16, PointRecord>;
@@ -202,6 +203,8 @@ impl PointStorage {
         self.online = true;
     }
 
+    /// Checks if the storage is online.
+    /// If it is not, it will return an error after a timeout.
     pub fn check_online(&self) -> Result<(), String> {
         if self.online {
             Ok(())
@@ -209,6 +212,32 @@ impl PointStorage {
             thread::sleep(Duration::from_millis(TIMEOUT + TIMEOUT / 10));
             Err("Storage is offline".to_string())
         }
+    }
+
+    pub fn coordinate_msg(msg: Message, points: Arc<Mutex<PointStorage>>) -> Result<TxOk, String> {
+        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
+        let tx = Transaction::new(points.self_address.clone(), &msg)?;
+        let record = points.take_for(&tx)?;
+        let mut record = record.lock().map_err(|_| "Failed to lock points")?;
+        let servers = points.get_other_servers();
+        let online = points.online;
+        let pending = points.pending.clone();
+        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
+        record.coordinate(tx, servers, online, pending)
+    }
+
+    pub fn coordinate_tx(
+        tx: Transaction,
+        points: Arc<Mutex<PointStorage>>,
+    ) -> Result<TxOk, String> {
+        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
+        let record = points.take_for(&tx)?;
+        let mut record = record.lock().map_err(|_| "Failed to lock points")?;
+        let servers = points.get_other_servers();
+        let online = points.online;
+        let pending = points.pending.clone();
+        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
+        record.coordinate(tx, servers, online, pending)
     }
 }
 
