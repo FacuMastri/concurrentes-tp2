@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "coffee_maker",
-  "local_server",
+  "server",
+  "controller",
   "common/util",
   "common/points"
 ]
