@@ -151,4 +151,12 @@ mod tests {
         let message = Message::LockOrder(order);
         Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
     }
+
+    #[test]
+    #[should_panic]
+    fn test_transaction_err_2() {
+        let order = Order::new(1, OrderAction::FillPoints(42));
+        let message = Message::FreeOrder(order);
+        Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
+    }
 }
