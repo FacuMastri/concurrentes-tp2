@@ -136,17 +136,17 @@ impl Server {
         // info!("Received {:?}", msg);
         match &msg {
             Message::LockOrder(order) => info!(
-                "Received LOCK POINTS {} request for client {}",
+                "Received LOCK POINTS {} request for client {}.",
                 order.action.points(),
                 order.client_id
             ),
             Message::FreeOrder(order) => info!(
-                "Received FREE POINTS {} request for client {}",
+                "Received FREE POINTS {} request for client {}.",
                 order.action.points(),
                 order.client_id
             ),
             Message::CommitOrder(order) => info!(
-                "Received COMMIT POINTS {} request for client {}",
+                "Received COMMIT POINTS {} request for client {}.",
                 order.action.points(),
                 order.client_id
             ),
