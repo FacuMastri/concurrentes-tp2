@@ -47,7 +47,8 @@ pub fn write_message_to(
     msg: impl Serialize,
     addr: &String,
 ) -> Result<TcpStream, String> {
-    let stream = TcpStream::connect(addr).map_err(|e| e.to_string())?;
+    let err = format!("Could not write message to {}", addr);
+    let stream = TcpStream::connect(addr).map_err(|_| err)?;
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
 
     stream

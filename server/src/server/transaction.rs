@@ -6,7 +6,7 @@ use std::{
 
 use points::{Message, OrderAction};
 use serde::{Deserialize, Deserializer, Serialize};
-use tracing::debug;
+use tracing::{debug, trace};
 
 use super::message::{write_message_to, TRANSACTION};
 
@@ -46,31 +46,47 @@ impl Transaction {
     /// Creates a new transaction with the given coordinator as the origin address and
     /// the given message as the transaction action.
     pub fn new(coordinator: String, msg: &Message) -> Result<Transaction, String> {
-        debug!("Coordinator {} creating new transaction.", coordinator);
+        debug!("Coordinator '{}' creating new transaction.", coordinator);
         let err = Err("Invalid message for transaction".to_string());
 
         let action = match msg {
             Message::LockOrder(order) => match order.action {
                 OrderAction::FillPoints(_) => err,
                 OrderAction::UsePoints(_) => {
-                    debug!("Transaction type is LOCK.");
+                    debug!(
+                        "Transaction type is LOCK POINTS {} for client {} request.",
+                        order.action.points(),
+                        order.client_id
+                    );
                     Ok(TransactionAction::Lock)
                 }
             },
             Message::FreeOrder(order) => match order.action {
                 OrderAction::FillPoints(_) => err,
                 OrderAction::UsePoints(_) => {
-                    debug!("Transaction type is FREE.");
+                    debug!(
+                        "Transaction type is FREE POINTS {} for client {} request.",
+                        order.action.points(),
+                        order.client_id
+                    );
                     Ok(TransactionAction::Free)
                 }
             },
             Message::CommitOrder(order) => match order.action {
                 OrderAction::FillPoints(_) => {
-                    debug!("Transaction type is ADD.");
+                    debug!(
+                        "Transaction type is ADD POINTS {} for client {} request.",
+                        order.action.points(),
+                        order.client_id
+                    );
                     Ok(TransactionAction::Add)
                 }
                 OrderAction::UsePoints(_) => {
-                    debug!("Transaction type is CONSUME.");
+                    debug!(
+                        "Transaction type is CONSUME POINTS {} for client {} request.",
+                        order.action.points(),
+                        order.client_id
+                    );
                     Ok(TransactionAction::Consume)
                 }
             },
@@ -118,14 +134,23 @@ impl Transaction {
             return Ok((TransactionState::Timeout, stream));
         }
         if buf[0] == TransactionState::Proceed as u8 {
+            debug!("Preparing transaction: PROCCED.");
             Ok((TransactionState::Proceed, stream))
         } else {
+            debug!("Preparing transaction: ABORT.");
             Ok((TransactionState::Abort, stream))
         }
     }
 
     /// Sends a transaction state message to the given stream.
     pub fn finalize(stream: &mut TcpStream, state: TransactionState) -> Result<(), String> {
+        let addr = stream.local_addr().unwrap();
+        match state {
+            TransactionState::Abort => debug!("Sending message ABORT to node {}", addr),
+            TransactionState::Proceed => debug!("Sending message COMMIT to node {}", addr),
+            TransactionState::Timeout => todo!(),
+        }
+
         stream.write_all(&[state as u8]).map_err(|e| e.to_string())
     }
 }

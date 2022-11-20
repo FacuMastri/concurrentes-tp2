@@ -14,7 +14,7 @@ use std::{
     net::TcpStream,
     sync::{Arc, Mutex},
 };
-use tracing::debug;
+use tracing::{debug, error, info, warn};
 
 /// Points tuple: available points, locked points
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,18 +73,16 @@ impl Points {
 
         let streams: Vec<Result<TcpStream, String>> = res
             .into_iter()
-            .map(|res| {
-                if let Ok((state, stream)) = res {
+            .map(|res| match res {
+                Ok((state, stream)) => {
                     match state {
                         TransactionState::Proceed => proceed += 1,
                         TransactionState::Abort => abort += 1,
                         _ => {}
                     }
                     Ok(stream)
-                } else {
-                    abort += 1;
-                    Err("Error".to_string())
                 }
+                Err(e) => Err(e),
             })
             .collect();
 
@@ -117,10 +115,13 @@ impl Points {
 
         // FINALIZE TRANSACTION
         for stream in streams {
-            let mut stream = stream.expect("Should not fail");
-            let res = Transaction::finalize(&mut stream, state.clone());
-            if res.is_err() {
-                debug!("Error finalizing transaction");
+            match stream {
+                Ok(mut stream) => {
+                    let _ = Transaction::finalize(&mut stream, state.clone());
+                }
+                Err(err) => {
+                    warn!(err)
+                }
             }
         }
 
@@ -171,6 +172,7 @@ impl Points {
     /// If the transaction is an add, the points are added (increasing the available points)
     /// If the transaction is a consume, the points are subtracted (decreasing the locked points)
     pub fn apply(&mut self, transaction: Transaction) {
+        info!("Apply {:?}", transaction);
         match transaction.action {
             TransactionAction::Add => {
                 self.0 += transaction.points;
