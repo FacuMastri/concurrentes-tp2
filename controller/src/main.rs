@@ -25,10 +25,7 @@ impl Request {
             Some(addr) => parse_addr(addr.to_string()),
             None => return None,
         };
-        Some(Request {
-            msg,
-            addr: addr.to_string(),
-        })
+        Some(Request { msg, addr })
     }
 
     pub fn send(self) -> Result<(), std::io::Error> {
