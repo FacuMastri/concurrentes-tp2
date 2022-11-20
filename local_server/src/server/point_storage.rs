@@ -22,6 +22,7 @@ pub struct PointStorage {
     pub points: PointMap,
     pub servers: HashSet<String>,
     pub self_address: String,
+    pub online: bool,
 }
 
 impl PointStorage {
@@ -52,6 +53,7 @@ impl PointStorage {
             points,
             servers,
             self_address,
+            online: true,
         }))
     }
 
@@ -176,6 +178,18 @@ impl PointStorage {
         let mut record = record.lock().map_err(|_| "Failed to lock record")?;
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
         record.handle_transaction(transaction, coordinator)
+    }
+
+    /// Makes the storage go offline.
+    /// It wont send or receive any transactions.
+    pub fn disconnect(&mut self) {
+        self.online = false;
+    }
+
+    /// Makes the storage go online.
+    /// It will send and receive transactions.
+    pub fn connect(&mut self) {
+        self.online = true;
     }
 }
 

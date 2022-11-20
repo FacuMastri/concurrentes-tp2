@@ -104,6 +104,7 @@ impl Points {
             match transaction.action {
                 TransactionAction::Lock => Err("Transaction Aborted".to_string()),
                 _ => {
+                    // TODO: handle abort
                     // Save for later
                     // Ok(())
                     Err("Not implemented".to_string())

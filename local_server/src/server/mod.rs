@@ -4,7 +4,10 @@ mod point_storage;
 mod transaction;
 
 use point_storage::PointStorage;
-use points::{Message, CLIENT_CONNECTION, MESSAGE_BUFFER_SIZE, SERVER_MESSAGE};
+use points::{
+    ControlBytes, ControlMessage, Message, CLIENT_CONNECTION, CONTROL_MESSAGE, MESSAGE_BUFFER_SIZE,
+    SERVER_MESSAGE,
+};
 
 use std::{
     io::{Read, Write},
@@ -88,6 +91,7 @@ impl Server {
         match type_buf[0] {
             CLIENT_CONNECTION => self.spawn_client_connection_handler(stream),
             SERVER_MESSAGE => self.spawn_server_message_handler(stream),
+            CONTROL_MESSAGE => self.handle_control_message(stream),
             _ => error!("Unknown message type"),
         }
     }
@@ -235,5 +239,27 @@ impl Server {
         debug!("Received: {:?}", tx);
 
         PointStorage::handle_transaction(points, tx, stream)
+    }
+
+    /// Handles a server control message
+    fn handle_control_message(&mut self, mut stream: TcpStream) {
+        let mut buf: ControlBytes = ControlMessage::Unknown.into();
+        let r = stream.read_exact(&mut buf);
+
+        if r.is_err() {
+            error!("Failed to read control message: {:?}", r);
+            return;
+        }
+
+        let mut points = self.points.lock().expect("Failed to lock points");
+        match buf.into() {
+            ControlMessage::Disconnect => {
+                points.disconnect();
+            }
+            ControlMessage::Connect => {
+                points.connect();
+            }
+            _ => {}
+        }
     }
 }
