@@ -150,6 +150,7 @@ impl Transaction {
             TransactionState::Abort => debug!("Sending message ABORT to node {}", addr),
             TransactionState::Proceed => debug!("Sending message COMMIT to node {}", addr),
             TransactionState::Timeout => todo!(),
+            TransactionState::Disconnected => todo!(),
         }
 
         stream.write_all(&[state as u8]).map_err(|e| e.to_string())
