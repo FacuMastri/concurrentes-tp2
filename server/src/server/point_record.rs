@@ -184,3 +184,19 @@ impl Points {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use points::{Message, Order, OrderAction};
+
+    use super::*;
+    #[test]
+    fn test_add_points() {
+        let mut points = Points(0, 0);
+        let order = Order::new(1, OrderAction::FillPoints(100));
+        let message = Message::CommitOrder(order);
+        let transaction = Transaction::new("127.0.0.1:9001".to_string(), &message).unwrap();
+        points.apply(transaction);
+        assert_eq!(100, points.0);
+    }
+}
