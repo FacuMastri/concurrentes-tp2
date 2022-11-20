@@ -14,7 +14,7 @@ use std::{
     net::TcpStream,
     sync::{Arc, Mutex},
 };
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// Points tuple: available points, locked points
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,8 +76,20 @@ impl Points {
             .map(|res| match res {
                 Ok((state, stream)) => {
                     match state {
-                        TransactionState::Proceed => proceed += 1,
-                        TransactionState::Abort => abort += 1,
+                        TransactionState::Proceed => {
+                            debug!(
+                                "Received COMMIT message for transaction with timestamp {}",
+                                transaction.timestamp
+                            );
+                            proceed += 1
+                        }
+                        TransactionState::Abort => {
+                            debug!(
+                                "Received ABORT message for transaction with timestamp {}",
+                                transaction.timestamp
+                            );
+                            abort += 1
+                        }
                         _ => {}
                     }
                     Ok(stream)
@@ -191,20 +203,39 @@ impl Points {
     /// If the transaction is an add, the points are added (increasing the available points)
     /// If the transaction is a consume, the points are subtracted (decreasing the locked points)
     pub fn apply(&mut self, transaction: Transaction) {
-        info!("Apply {:?}", transaction);
+        info!(
+            "Applying commited transaction with timestamp {}",
+            transaction.timestamp
+        );
         match transaction.action {
             TransactionAction::Add => {
+                debug!(
+                    "Adding {} points for client id {}.",
+                    transaction.points, transaction.client_id
+                );
                 self.0 += transaction.points;
             }
             TransactionAction::Lock => {
+                debug!(
+                    "Locking {} points for client id {}.",
+                    transaction.points, transaction.client_id
+                );
                 self.0 -= transaction.points;
                 self.1 += transaction.points;
             }
             TransactionAction::Free => {
+                debug!(
+                    "Freeing {} points for client id {}.",
+                    transaction.points, transaction.client_id
+                );
                 self.0 += transaction.points;
                 self.1 -= transaction.points;
             }
             TransactionAction::Consume => {
+                debug!(
+                    "Consuming {} points for client id {}.",
+                    transaction.points, transaction.client_id
+                );
                 self.1 -= transaction.points;
             }
         }
