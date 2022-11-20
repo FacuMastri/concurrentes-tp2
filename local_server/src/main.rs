@@ -17,7 +17,7 @@ fn parse_args() -> (String, Option<String>) {
             Some(parse_addr(args[2].clone())),
         );
     }
-    panic!("Usage: cargo run --bin local_server <address> [<known_server_address>]");
+    panic!("Usage: local_server <address> [<known_server_address>]");
 }
 
 fn init_logger() {
