@@ -177,8 +177,16 @@ impl PointStorage {
         let record = points.take_for(&transaction);
 
         let state = if record.is_ok() {
+            debug!(
+                "Sending APROVE message to coordinator for transaction with timestamp {}.",
+                transaction.timestamp
+            );
             TransactionState::Proceed as u8
         } else {
+            debug!(
+                "Sending ABORT message to coordinator for transaction with timestamp {}.",
+                transaction.timestamp
+            );
             TransactionState::Abort as u8
         };
         coordinator.write_all(&[state]).map_err(|e| e.to_string())?;

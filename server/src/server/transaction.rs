@@ -55,7 +55,7 @@ impl Transaction {
                 OrderAction::FillPoints(_) => err,
                 OrderAction::UsePoints(_) => {
                     debug!(
-                        "Transaction type is LOCK POINTS {} for client {} request.",
+                        "Transaction request is LOCK POINTS {} for client id {}.",
                         order.action.points(),
                         order.client_id
                     );
@@ -66,7 +66,7 @@ impl Transaction {
                 OrderAction::FillPoints(_) => err,
                 OrderAction::UsePoints(_) => {
                     debug!(
-                        "Transaction type is FREE POINTS {} for client {} request.",
+                        "Transaction request is FREE POINTS {} for client id {}.",
                         order.action.points(),
                         order.client_id
                     );
@@ -76,7 +76,7 @@ impl Transaction {
             Message::CommitOrder(order) => match order.action {
                 OrderAction::FillPoints(_) => {
                     debug!(
-                        "Transaction type is ADD POINTS {} for client {} request.",
+                        "Transaction request is ADD POINTS {} for client id {}.",
                         order.action.points(),
                         order.client_id
                     );
@@ -84,7 +84,7 @@ impl Transaction {
                 }
                 OrderAction::UsePoints(_) => {
                     debug!(
-                        "Transaction type is CONSUME POINTS {} for client {} request.",
+                        "Transaction request is CONSUME POINTS {} for client id {}.",
                         order.action.points(),
                         order.client_id
                     );
@@ -135,10 +135,8 @@ impl Transaction {
             return Ok((TransactionState::Timeout, stream));
         }
         if buf[0] == TransactionState::Proceed as u8 {
-            debug!("Preparing transaction: PROCCED.");
             Ok((TransactionState::Proceed, stream))
         } else {
-            debug!("Preparing transaction: ABORT.");
             Ok((TransactionState::Abort, stream))
         }
     }
@@ -147,8 +145,8 @@ impl Transaction {
     pub fn finalize(stream: &mut TcpStream, state: TransactionState) -> Result<(), String> {
         let addr = stream.local_addr().unwrap();
         match state {
-            TransactionState::Abort => debug!("Sending message ABORT to node {}", addr),
-            TransactionState::Proceed => debug!("Sending message COMMIT to node {}", addr),
+            TransactionState::Abort => debug!("Sending message ABORT through socket {}", addr),
+            TransactionState::Proceed => debug!("Sending message COMMIT through socket {}", addr),
             TransactionState::Timeout => todo!(),
             TransactionState::Disconnected => todo!(),
         }

@@ -41,7 +41,7 @@ impl PointRecord {
 impl fmt::Debug for PointRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let points = self.points.lock().map_err(|_| fmt::Error)?;
-        write!(f, "{:?} [{:?}]", points.0, points.1)
+        write!(f, "Points: {:?}. Locked points: {:?}", points.0, points.1)
     }
 }
 
@@ -78,14 +78,14 @@ impl Points {
                     match state {
                         TransactionState::Proceed => {
                             debug!(
-                                "Received COMMIT message for transaction with timestamp {}",
+                                "Received APROVE message for transaction with timestamp {}.",
                                 transaction.timestamp
                             );
                             proceed += 1
                         }
                         TransactionState::Abort => {
                             debug!(
-                                "Received ABORT message for transaction with timestamp {}",
+                                "Received ABORT message for transaction with timestamp {}.",
                                 transaction.timestamp
                             );
                             abort += 1
@@ -190,9 +190,17 @@ impl Points {
             .map_err(|e| e.to_string())?;
 
         if buf[0] == TransactionState::Proceed as u8 {
+            debug!(
+                "Received COMMIT message from coordinator for transaction with timestamp {}.",
+                transaction.timestamp
+            );
             self.apply(transaction);
             Ok(())
         } else {
+            debug!(
+                "Received ABORT message from coordinator for transaction with timestamp {}.",
+                transaction.timestamp
+            );
             Err("Aborted Transaction".to_string())
         }
     }
@@ -204,7 +212,7 @@ impl Points {
     /// If the transaction is a consume, the points are subtracted (decreasing the locked points)
     pub fn apply(&mut self, transaction: Transaction) {
         info!(
-            "Applying commited transaction with timestamp {}",
+            "Applying commited transaction with timestamp {}.",
             transaction.timestamp
         );
         match transaction.action {

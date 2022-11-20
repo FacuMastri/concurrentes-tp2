@@ -19,7 +19,10 @@ use std::{
 };
 use tracing::{debug, error, info};
 
-use crate::server::message::{receive_from, respond_to, SyncRequest};
+use crate::server::{
+    message::{receive_from, respond_to, SyncRequest},
+    transaction::TransactionAction,
+};
 
 use self::{
     message::{ConnectRequest, CONNECT, SYNC, TRANSACTION},
@@ -146,7 +149,7 @@ impl Server {
                 order.client_id
             ),
             Message::CommitOrder(order) => info!(
-                "Received COMMIT POINTS {} request for client {}.",
+                "Received ADD POINTS {} request for client {}.",
                 order.action.points(),
                 order.client_id
             ),
@@ -250,7 +253,18 @@ impl Server {
 
         let tx: Transaction =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse transaction")?;
-        debug!("Received: {:?}", tx);
+        // debug!("Received: {:?}", tx);
+        let action;
+        match tx.action {
+            TransactionAction::Add => action = "ADD",
+            TransactionAction::Lock => action = "LOCK",
+            TransactionAction::Free => action = "FREE",
+            TransactionAction::Consume => action = "CONSUME",
+        }
+        debug!(
+            "Received transaction from coordinator '{}' with timestamp {} for client {} to {} {} points.",
+            tx.coordinator, tx.timestamp, tx.client_id, action, tx.points
+        );
 
         PointStorage::handle_transaction(points, tx, stream)
     }
