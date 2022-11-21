@@ -171,6 +171,14 @@ impl Server {
     /// Spawns a new thread to handle a received message from another server.
     fn spawn_server_message_handler(&mut self, stream: TcpStream) {
         let points = self.points.clone();
+
+        {
+            let points = points.lock().expect("Could not lock points");
+            if !points.online {
+                return;
+            }
+        }
+
         let handler = thread::spawn(move || {
             Self::server_message_handler(stream, points);
         });
