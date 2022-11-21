@@ -13,13 +13,13 @@ use super::{
         SyncResponse, TIMEOUT,
     },
     pending_transactions::PendingTransactions,
-    point_record::{PointRecord, Points},
-    transaction::{Transaction, TransactionAction, TransactionState, TxOk},
+    point_record::PointRecord,
+    transaction::{Transaction, TransactionState, TxOk},
 };
 use points::Message;
 use tracing::{debug, error, info};
 
-pub type PointMap = HashMap<u16, PointRecord>;
+pub type PointMap = HashMap<u16, Arc<Mutex<PointRecord>>>;
 
 #[derive(Debug)]
 pub struct PointStorage {
@@ -68,10 +68,11 @@ impl PointStorage {
     }
 
     /// Gets the point record for the given id.
-    pub fn get_point_record(&mut self, client_id: u16) -> &mut PointRecord {
+    pub fn get_point_record(&mut self, client_id: u16) -> Arc<Mutex<PointRecord>> {
         self.points
             .entry(client_id)
-            .or_insert_with(PointRecord::new)
+            .or_insert_with(|| Arc::new(Mutex::new(PointRecord::new())))
+            .clone()
     }
 
     /// Gets the list of servers associated with the point storage.
@@ -130,75 +131,76 @@ impl PointStorage {
         Ok(())
     }
 
-    /// Check if order can be fulfilled for the received transaction
-    ///
-    /// # Returns
-    /// [mutex guard/arc mutex] of the record for the client
-    pub fn take_for(&mut self, transaction: &Transaction) -> Result<Arc<Mutex<Points>>, String> {
-        let record = self.get_point_record(transaction.client_id);
+    /*
+        /// Check if order can be fulfilled for the received transaction
+        ///
+        /// # Returns
+        /// [mutex guard/arc mutex] of the record for the client
+        pub fn take_for(&mut self, transaction: &Transaction) -> Result<Arc<Mutex<Points>>, String> {
+            let record = self.get_point_record(transaction.client_id);
 
-        // wait-die verification
-        if let Some(etx) = record.transaction.clone() {
-            if transaction.older_than(&etx) {
-                return Err("Transaction is older than the current one".to_string());
+            // wait-die verification
+            if let Some(etx) = record.transaction.clone() {
+                if transaction.older_than(&etx) {
+                    return Err("Transaction is older than the current one".to_string());
+                }
             }
+
+            // FIXME: point_storage is locked while waiting for this lock
+            let points = record.points.clone();
+            let points = points.lock().unwrap();
+
+            match transaction.action {
+                TransactionAction::Add => Ok(()),
+                TransactionAction::Lock => {
+                    if points.0 < transaction.points {
+                        Err("Not enough points available".to_string())
+                    } else {
+                        Ok(())
+                    }
+                }
+                _ => {
+                    // Free or Consume
+                    if points.1 < transaction.points {
+                        Err("Not enough points locked".to_string())
+                    } else {
+                        Ok(())
+                    }
+                }
+            }?;
+
+            Ok(record.points.clone())
         }
-
-        // FIXME: point_storage is locked while waiting for this lock
-        let points = record.points.clone();
-        let points = points.lock().unwrap();
-
-        match transaction.action {
-            TransactionAction::Add => Ok(()),
-            TransactionAction::Lock => {
-                if points.0 < transaction.points {
-                    Err("Not enough points available".to_string())
-                } else {
-                    Ok(())
-                }
-            }
-            _ => {
-                // Free or Consume
-                if points.1 < transaction.points {
-                    Err("Not enough points locked".to_string())
-                } else {
-                    Ok(())
-                }
-            }
-        }?;
-
-        Ok(record.points.clone())
-    }
-
+    */
     /// Handles a transaction for the given storage.
     pub fn handle_transaction(
         storage: Arc<Mutex<PointStorage>>,
         transaction: Transaction,
         mut coordinator: TcpStream,
     ) -> Result<(), String> {
-        let mut points = storage.lock().map_err(|_| "Failed to lock storage")?;
-        points.check_online()?;
-        let record = points.take_for(&transaction);
+        let mut storage = storage.lock().map_err(|_| "Failed to lock storage")?;
+        storage.check_online()?;
 
-        let state = if record.is_ok() {
-            debug!(
-                "Sending APPROVE message to coordinator for transaction with timestamp {}.",
-                transaction.timestamp
-            );
+        let record = storage.get_point_record(transaction.client_id);
+        drop(storage);
+        let record = record.lock().map_err(|_| "Failed to lock record")?;
+
+        let wait_die = record.wait_die(&transaction);
+
+        let points = record.points.clone();
+        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
+        drop(record);
+
+        let state = if wait_die.is_ok() && points.can_perform(&transaction).is_ok() {
+            debug!("Sending APPROVE for {:?}.", transaction);
             TransactionState::Proceed as u8
         } else {
-            debug!(
-                "Sending ABORT message to coordinator for transaction with timestamp {}.",
-                transaction.timestamp
-            );
+            debug!("Sending ABORT for {:?}.", transaction);
             TransactionState::Abort as u8
         };
         coordinator.write_all(&[state]).map_err(|e| e.to_string())?;
 
-        let record = record?;
-        let mut record = record.lock().map_err(|_| "Failed to lock record")?;
-        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        record.handle_transaction(transaction, coordinator)
+        points.handle_transaction(transaction, coordinator)
     }
 
     /// Makes the storage go offline.
@@ -226,44 +228,59 @@ impl PointStorage {
         }
     }
 
-    pub fn free_transaction(&mut self, transaction: Transaction) -> Result<(), String> {
-        let client_id = transaction.client_id;
-        let record = self.points.get_mut(&client_id).ok_or("Client not found")?;
-        record.transaction = None;
-        Ok(())
-    }
-
     pub fn coordinate_msg(msg: Message, storage: Arc<Mutex<PointStorage>>) -> Result<TxOk, String> {
-        let mut points = storage.lock().map_err(|_| "Failed to lock points")?;
-        let tx = Transaction::new(points.self_address.clone(), &msg)?;
-        let record = points.take_for(&tx)?;
-        let mut record = record.lock().map_err(|_| "Failed to lock points")?;
-        let servers = points.get_other_servers();
-        let online = points.online;
-        let pending = points.pending.clone();
-        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        let result = record.coordinate(tx.clone(), servers, online, pending);
+        let mut storage = storage.lock().map_err(|_| "Failed to lock storage")?;
+        let transaction = Transaction::new(storage.self_address.clone(), &msg)?;
+
+        let servers = storage.get_other_servers();
+        let online = storage.online;
+        let pending = storage.pending.clone();
+
+        let record_ref = storage.get_point_record(transaction.client_id);
+        drop(storage);
+        let record = record_ref.lock().map_err(|_| "Failed to lock record")?;
+
+        record.wait_die(&transaction)?;
+
+        let points = record.points.clone();
+        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
         drop(record);
-        let mut storage_aux = storage.lock().map_err(|_| "Failed to lock points")?;
-        storage_aux.free_transaction(tx)?;
+
+        let result = points.coordinate(transaction, servers, online, pending);
+        drop(points);
+
+        let mut record = record_ref.lock().map_err(|_| "Failed to lock record")?;
+        record.transaction = None;
+
         result
     }
 
     pub fn coordinate_tx(
-        tx: Transaction,
+        transaction: Transaction,
         storage: Arc<Mutex<PointStorage>>,
     ) -> Result<TxOk, String> {
-        let mut points = storage.lock().map_err(|_| "Failed to lock points")?;
-        let record = points.take_for(&tx)?;
-        let mut record = record.lock().map_err(|_| "Failed to lock points")?;
-        let servers = points.get_other_servers();
-        let online = points.online;
-        let pending = points.pending.clone();
-        drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        let result = record.coordinate(tx.clone(), servers, online, pending);
+        let mut storage = storage.lock().map_err(|_| "Failed to lock storage")?;
+
+        let servers = storage.get_other_servers();
+        let online = storage.online;
+        let pending = storage.pending.clone();
+
+        let record_ref = storage.get_point_record(transaction.client_id);
+        drop(storage);
+        let record = record_ref.lock().map_err(|_| "Failed to lock record")?;
+
+        record.wait_die(&transaction)?;
+
+        let points = record.points.clone();
+        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
         drop(record);
-        let mut storage_aux = storage.lock().map_err(|_| "Failed to lock points")?;
-        storage_aux.free_transaction(tx)?;
+
+        let result = points.coordinate(transaction, servers, online, pending);
+        drop(points);
+
+        let mut record = record_ref.lock().map_err(|_| "Failed to lock record")?;
+        record.transaction = None;
+
         result
     }
 

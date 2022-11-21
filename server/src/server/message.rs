@@ -6,7 +6,7 @@ use std::{
 
 use points::SERVER_MESSAGE;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 use super::point_storage::PointMap;
 
@@ -166,10 +166,17 @@ pub fn sync_with(addr: &String) -> Result<PointMap, String> {
     debug!("Sending SYNC to {}", addr);
     let res = send_message_to(SYNC, msg, addr)?;
     let res: SyncResponse = serde_json::from_str(&res).map_err(|_| "Failed to parse response")?;
-    // Falopa
+
+    // Remove transactions from the point map
     let mut points = res.points;
     for (_, point) in points.iter_mut() {
-        point.transaction = None;
+        let point = point.clone();
+        let point = point.lock();
+        if let Ok(mut point) = point {
+            point.transaction = None;
+        } else {
+            error!("Failed to lock point while parsing sync response");
+        }
     }
 
     debug!("Response: {:?}", points);

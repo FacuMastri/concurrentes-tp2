@@ -30,6 +30,15 @@ impl PointRecord {
             transaction: None,
         }
     }
+
+    pub fn wait_die(&self, transaction: &Transaction) -> Result<(), String> {
+        if let Some(etx) = self.transaction.clone() {
+            if transaction.older_than(&etx) {
+                return Err("Transaction is older than the current one".to_string());
+            }
+        }
+        Ok(())
+    }
 }
 
 impl fmt::Debug for PointRecord {
@@ -127,13 +136,15 @@ impl Points {
         online: bool,
         pending: Arc<PendingTransactions>,
     ) -> Result<TxOk, String> {
-        // PREPARE TRANSACTION
-        // There is only one server working (this one), so we can just commit the transaction no matter
-        // what type of transaction is.
+        self.can_perform(&transaction)?;
+
+        // Commit the transaction directly if this is the only server
         if servers.is_empty() {
             self.apply(transaction);
             return Ok(TxOk::Finalized);
         }
+
+        // PREPARE TRANSACTION
         let (state, streams) = self.prepare(transaction.clone(), servers, online)?;
 
         // FINALIZE TRANSACTION
@@ -175,6 +186,27 @@ impl Points {
                 }
             }
             _ => Err("Invalid TransactionState".to_string()),
+        }
+    }
+
+    pub fn can_perform(&self, transaction: &Transaction) -> Result<(), String> {
+        match transaction.action {
+            TransactionAction::Add => Ok(()),
+            TransactionAction::Lock => {
+                if self.0 < transaction.points {
+                    Err("Not enough points available".to_string())
+                } else {
+                    Ok(())
+                }
+            }
+            _ => {
+                // Free or Consume
+                if self.1 < transaction.points {
+                    Err("Not enough points locked".to_string())
+                } else {
+                    Ok(())
+                }
+            }
         }
     }
 

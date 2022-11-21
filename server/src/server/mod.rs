@@ -297,23 +297,23 @@ impl Server {
     }
 
     fn spawn_pending_handler(&mut self) {
-        let points = self.points.clone();
+        let storage = self.points.clone();
         let handler = thread::spawn(move || {
-            Self::pending_handler(points);
+            Self::pending_handler(storage);
         });
 
         self.handlers.push(handler);
     }
 
-    fn pending_handler(points: Arc<Mutex<PointStorage>>) {
-        let point_lock = points.lock().expect("Failed to lock points");
-        let pending = point_lock.pending.clone();
-        drop(point_lock);
+    fn pending_handler(storage: Arc<Mutex<PointStorage>>) {
+        let storage_lock = storage.lock().expect("Failed to lock storage");
+        let pending = storage_lock.pending.clone();
+        drop(storage_lock);
 
         loop {
-            let points = points.clone();
-            let tx = pending.pop().unwrap();
-            let op = PointStorage::coordinate_tx(tx, points);
+            let storage = storage.clone();
+            let transaction = pending.pop().unwrap();
+            let op = PointStorage::coordinate_tx(transaction, storage);
             match op {
                 Ok(TxOk::Finalized) => {}
                 _ => {
