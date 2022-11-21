@@ -42,7 +42,7 @@ pub struct Server {
     address: String,
     listener: TcpListener,
     points: Arc<Mutex<PointStorage>>,
-    threadpool: ThreadPool,
+    thread_pool: ThreadPool,
 }
 
 const PING_INTERVAL: u64 = 1000;
@@ -65,7 +65,7 @@ impl Server {
             address: address.clone(),
             listener,
             points: PointStorage::new(address, core_server_addr),
-            threadpool: Builder::new().num_threads(N_THREADS).build(),
+            thread_pool: Builder::new().num_threads(N_THREADS).build(),
         }
     }
 
@@ -88,7 +88,7 @@ impl Server {
 
     pub fn spawn_logger(&mut self, interval: u64) {
         let points = self.points.clone();
-        self.threadpool.execute(move || loop {
+        self.thread_pool.execute(move || loop {
             thread::sleep(Duration::from_millis(interval));
             let points = points.lock().unwrap();
             debug!("Points: {:?}", points);
@@ -115,7 +115,7 @@ impl Server {
     /// Spawns a new thread to handle a client connection.
     fn spawn_client_connection_handler(&mut self, stream: TcpStream) {
         let points = self.points.clone();
-        self.threadpool.execute(move || {
+        self.thread_pool.execute(move || {
             Self::connection_handler(stream, points);
         });
     }
@@ -181,7 +181,7 @@ impl Server {
                 return;
             }
         }
-        self.threadpool.execute(move || {
+        self.thread_pool.execute(move || {
             Self::server_message_handler(stream, points);
         });
     }
@@ -290,13 +290,16 @@ impl Server {
         }
     }
 
+    /// Spawn a job to handle a pending transactions.
     fn spawn_pending_handler(&mut self) {
         let storage = self.points.clone();
-        self.threadpool.execute(|| {
+        self.thread_pool.execute(|| {
             Self::pending_handler(storage);
         });
     }
 
+    /// Handles pending transactions.
+    /// Coordinates the pending transactions if the server is online.
     fn pending_handler(storage: Arc<Mutex<PointStorage>>) {
         let storage_lock = storage.lock().expect("Failed to lock storage");
         let pending = storage_lock.pending.clone();
@@ -314,6 +317,10 @@ impl Server {
             }
         }
     }
+
+    /// Handles a ping request from another server.
+    /// The ping request is responded to with an OK message and it is used to check if the other
+    /// servers are online or if the current server is online.
     fn handle_server_ping(
         mut stream: TcpStream,
         storage: Arc<Mutex<PointStorage>>,
@@ -335,13 +342,17 @@ impl Server {
 
         respond_to(&mut stream, serialized_res)
     }
+
+    /// Spawns a job to handle pings to other servers.
     fn spawn_ping_handler(&mut self) {
         let storage = self.points.clone();
-        self.threadpool.execute(move || {
+        self.thread_pool.execute(move || {
             Self::ping_handler(storage);
         });
     }
 
+    /// Pings to other servers to check if they are online or if the current server is offline.
+    /// If no server responded, this server will go into offline mode.
     fn ping_handler(storage: Arc<Mutex<PointStorage>>) {
         loop {
             thread::sleep(Duration::from_millis(PING_INTERVAL));
