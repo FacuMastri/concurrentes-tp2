@@ -83,7 +83,7 @@ impl Server {
     pub fn spawn_logger(&mut self, interval: u64) {
         let points = self.points.clone();
         let handler = thread::spawn(move || loop {
-            std::thread::sleep(std::time::Duration::from_millis(interval));
+            thread::sleep(Duration::from_millis(interval));
             let points = points.lock().unwrap();
             debug!("{:#?}", points);
         });
