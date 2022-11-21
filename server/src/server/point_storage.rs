@@ -61,15 +61,8 @@ impl PointStorage {
             online: true,
             pending: PendingTransactions::new(),
         }));
-        /*
-        let ref1 = res.clone();
-        let ref2 = res.clone();
-        let ref2 = ref2.lock().unwrap();
 
-        ref2.pending.set_on_connect(move ||{
-            let mut points = ref1.lock().unwrap();
-            debug!()
-        });*/
+        Self::set_on_connect(res.clone());
 
         res
     }
@@ -257,6 +250,31 @@ impl PointStorage {
         let pending = points.pending.clone();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
         record.coordinate(tx, servers, online, pending)
+    }
+
+    pub fn set_on_connect(storage: Arc<Mutex<Self>>) {
+        let lock = storage.clone();
+        let mut lock = lock.lock().unwrap();
+
+        let pending = lock.pending.clone();
+        pending.set_on_connect(Box::new(move || {
+            let storage = storage.clone();
+            Self::on_connect(storage)
+        }))
+    }
+    pub fn on_connect(storage: Arc<Mutex<Self>>) {
+        let mut storage = storage.lock().unwrap();
+        let servers = storage.get_other_servers();
+
+        // At least half the servers must be online
+        for addr in servers {
+            let points = sync_with(&addr);
+            if let Ok(points) = points {
+                storage.points = points;
+                return;
+            }
+        }
+        error!("Failed to sync with any server on connect. This should not happen!");
     }
 }
 

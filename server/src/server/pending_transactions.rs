@@ -12,7 +12,7 @@ pub struct PendingTransactions {
     semaphore: Semaphore,
     online: Semaphore,
     connected: Mutex<bool>,
-    on_connect: fn() -> (),
+    on_connect: Box<dyn Fn() -> ()>,
 }
 
 impl std::fmt::Debug for PendingTransactions {
@@ -30,11 +30,11 @@ impl PendingTransactions {
             semaphore: Semaphore::new(0),
             online: Semaphore::new(1),
             connected: Mutex::new(true),
-            on_connect: || {},
+            on_connect: Box::new(|| {}),
         })
     }
 
-    pub fn set_on_connect(&mut self, on_connect: fn() -> ()) {
+    pub fn set_on_connect(&mut self, on_connect: Box<dyn Fn() -> ()>) {
         self.on_connect = on_connect;
     }
 
