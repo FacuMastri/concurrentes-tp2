@@ -105,8 +105,16 @@ impl Points {
 
         let abort = abort > 0 || proceed < servers.len() / 2;
         let state = if abort {
+            debug!(
+                "Coordinator decided to ABORT transaction with timestamp {}.",
+                transaction.timestamp
+            );
             TransactionState::Abort
         } else {
+            debug!(
+                "Coordinator decided to COMMIT transaction with timestamp {}.",
+                transaction.timestamp
+            );
             TransactionState::Proceed
         };
         Ok((state, streams))
