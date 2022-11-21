@@ -68,7 +68,7 @@ impl PendingTransactions {
     pub fn disconnect(&self) {
         let mut connected = self.connected.lock().expect("Could not lock connected");
         if *connected {
-            trace!("Lost connection");
+            debug!("No connection to the global network");
             self.online.acquire();
             *connected = false;
         }

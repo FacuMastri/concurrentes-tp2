@@ -339,7 +339,7 @@ impl Server {
         let points = self.points.clone();
         let handler = thread::spawn(move || loop {
             thread::sleep(Duration::from_millis(PING_INTERVAL));
-            let points = points.lock().unwrap();
+            let points = points.lock().expect("Failed to lock points");
             let other_servers = points.get_other_servers();
             let pending = points.pending.clone();
             drop(points);
