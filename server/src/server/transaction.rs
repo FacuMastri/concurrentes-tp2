@@ -47,7 +47,6 @@ impl Transaction {
     /// Creates a new transaction with the given coordinator as the origin address and
     /// the given message as the transaction action.
     pub fn new(coordinator: String, msg: &Message) -> Result<Transaction, String> {
-        debug!("Coordinator '{}' creating new transaction.", coordinator);
         let err = Err("Invalid message for transaction".to_string());
 
         let action = match msg {
@@ -98,7 +97,10 @@ impl Transaction {
         let points = order.action.points();
 
         let timestamp = generate_timestamp();
-
+        debug!(
+            "Coordinator '{}' creating new transaction with timestamp {}.",
+            coordinator, timestamp
+        );
         Ok(Transaction {
             coordinator,
             timestamp,
