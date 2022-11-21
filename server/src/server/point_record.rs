@@ -126,6 +126,12 @@ impl Points {
         pending: Arc<PendingTransactions>,
     ) -> Result<TxOk, String> {
         // PREPARE TRANSACTION
+        // There is only one server working (this one), so we can just commit the transaction no matter
+        // what type of transaction is.
+        if servers.is_empty() {
+            self.apply(transaction);
+            return Ok(TxOk::Finalized);
+        }
         let (state, streams) = self.prepare(transaction.clone(), servers, online)?;
 
         // FINALIZE TRANSACTION

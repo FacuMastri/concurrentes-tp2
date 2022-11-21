@@ -6,7 +6,7 @@ use std::{
 
 use points::SERVER_MESSAGE;
 use serde::{Deserialize, Serialize};
-use tracing::debug;
+use tracing::{debug, trace};
 
 use super::point_storage::PointMap;
 
@@ -109,7 +109,11 @@ pub fn receive_from(stream: &mut TcpStream) -> Result<Vec<u8>, String> {
 
 /// Responds to a message to the given stream.
 pub fn respond_to(stream: &mut TcpStream, response: String) -> Result<(), String> {
-    debug!("Responding {:?}", response);
+    if response != "null" {
+        debug!("Responding {:?}", response);
+    } else {
+        trace!("Responding {:?}", response);
+    }
     stream
         .write_all(response.as_bytes())
         .map_err(|e| e.to_string())
