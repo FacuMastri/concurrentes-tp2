@@ -337,7 +337,13 @@ impl Server {
     }
     fn spawn_ping_handler(&mut self) {
         let storage = self.points.clone();
-        self.threadpool.execute(move || loop {
+        self.threadpool.execute(move || {
+            Self::ping_handler(storage);
+        });
+    }
+
+    fn ping_handler(storage: Arc<Mutex<PointStorage>>) {
+        loop {
             thread::sleep(Duration::from_millis(PING_INTERVAL));
             let points = storage.lock().expect("Failed to lock points");
             let other_servers = points.get_other_servers();
@@ -362,6 +368,6 @@ impl Server {
             } else {
                 pending.disconnect();
             }
-        });
+        }
     }
 }
