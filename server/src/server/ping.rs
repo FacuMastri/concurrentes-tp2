@@ -1,6 +1,6 @@
 use crate::server::message::{send_message_to, PING};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, trace};
+use tracing::trace;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PingRequest;

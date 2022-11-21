@@ -1,9 +1,6 @@
 use super::{
     pending_transactions::PendingTransactions,
-    transaction::{
-        transaction_deserializer, Transaction, TransactionAction, TransactionState, TxOk,
-        COMMIT_TIMEOUT,
-    },
+    transaction::{Transaction, TransactionAction, TransactionState, TxOk, COMMIT_TIMEOUT},
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -24,8 +21,6 @@ pub struct Points(pub usize, pub usize);
 pub struct PointRecord {
     // available points / locked points
     pub points: Arc<Mutex<Points>>,
-    #[serde(skip_serializing)]
-    #[serde(deserialize_with = "transaction_deserializer")]
     pub transaction: Option<Transaction>,
 }
 

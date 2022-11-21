@@ -5,7 +5,7 @@ use std::{
 };
 
 use points::{Message, OrderAction};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use tracing::debug;
 
 use super::message::{write_message_to, TRANSACTION};
@@ -162,13 +162,6 @@ fn generate_timestamp() -> u128 {
     let now = SystemTime::now();
     let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
     since_the_epoch.as_millis()
-}
-
-pub fn transaction_deserializer<'de, D>(_deserializer: D) -> Result<Option<Transaction>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Ok(None)
 }
 
 #[cfg(test)]

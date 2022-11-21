@@ -194,16 +194,16 @@ impl Server {
 
     /// Handles the received message from another server.
     /// The message could be a request to synchronize points, a new transaction or a connection request.
-    fn server_message_handler(mut stream: TcpStream, points: Arc<Mutex<PointStorage>>) {
+    fn server_message_handler(mut stream: TcpStream, storage: Arc<Mutex<PointStorage>>) {
         let mut buf = [0; 1];
 
         stream.read_exact(&mut buf).unwrap();
 
         let res = match buf[0] {
-            CONNECT => Self::handle_server_connection(stream, points),
-            SYNC => Self::handle_server_sync(stream, points),
-            TRANSACTION => Self::handle_server_transaction(stream, points),
-            PING => Self::handle_server_ping(stream),
+            CONNECT => Self::handle_server_connection(stream, storage),
+            SYNC => Self::handle_server_sync(stream, storage),
+            TRANSACTION => Self::handle_server_transaction(stream, storage),
+            PING => Self::handle_server_ping(stream, storage),
             _ => Err("Unknown message type".to_string()),
         };
 
@@ -322,8 +322,16 @@ impl Server {
             }
         }
     }
-    fn handle_server_ping(mut stream: TcpStream) -> Result<(), String> {
+    fn handle_server_ping(
+        mut stream: TcpStream,
+        storage: Arc<Mutex<PointStorage>>,
+    ) -> Result<(), String> {
         let res = receive_from(&mut stream)?;
+        let points = storage.lock().expect("Failed to lock points");
+        let online = points.online;
+        if !online {
+            return Ok(());
+        }
 
         let _req: PingRequest =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse ping request")?;
@@ -336,15 +344,19 @@ impl Server {
         respond_to(&mut stream, serialized_res)
     }
     fn spawn_ping_handler(&mut self) {
-        let points = self.points.clone();
+        let storage = self.points.clone();
         let handler = thread::spawn(move || loop {
             thread::sleep(Duration::from_millis(PING_INTERVAL));
-            let points = points.lock().expect("Failed to lock points");
+            let points = storage.lock().expect("Failed to lock points");
             let other_servers = points.get_other_servers();
+            let online = points.online;
             let pending = points.pending.clone();
             drop(points);
             let mut ping_response = false;
             for server in other_servers {
+                if !online {
+                    break;
+                }
                 if let Ok(_response) = ping_to(&server) {
                     trace!("Ping to {} successful", server);
                     ping_response = true;

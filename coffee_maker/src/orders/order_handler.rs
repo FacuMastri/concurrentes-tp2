@@ -6,7 +6,7 @@ use futures::executor::block_on;
 use rand::Rng;
 use tracing::{debug, info, trace, warn};
 
-const SUCCESS_CHANCE: f64 = 0.5;
+const SUCCESS_CHANCE: f64 = 1.0;
 const ORDER_MILLIS: u64 = 1000;
 
 pub struct OrderHandler {

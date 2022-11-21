@@ -78,7 +78,7 @@ pub fn write_message_to(
 ///
 /// # Returns
 ///
-/// The response message.
+/// The response message as a string.
 pub fn send_message_to(msg_type: u8, msg: impl Serialize, addr: &String) -> Result<String, String> {
     let stream = write_message_to(msg_type, msg, addr)?;
     let mut reader = BufReader::new(stream.try_clone().unwrap());
@@ -165,10 +165,14 @@ pub fn sync_with(addr: &String) -> Result<PointMap, String> {
     let msg = SyncRequest {};
     debug!("Sending SYNC to {}", addr);
     let res = send_message_to(SYNC, msg, addr)?;
-
     let res: SyncResponse = serde_json::from_str(&res).map_err(|_| "Failed to parse response")?;
+    // Falopa
+    let mut points = res.points;
+    for (_, point) in points.iter_mut() {
+        point.transaction = None;
+    }
 
-    debug!("Response: {:?}", res);
+    debug!("Response: {:?}", points);
 
-    Ok(res.points)
+    Ok(points)
 }

@@ -4,7 +4,7 @@ use std::{
 };
 
 use std_semaphore::Semaphore;
-use tracing::{debug, trace};
+use tracing::debug;
 
 use super::transaction::Transaction;
 

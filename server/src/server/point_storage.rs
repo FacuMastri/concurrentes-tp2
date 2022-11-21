@@ -226,8 +226,15 @@ impl PointStorage {
         }
     }
 
-    pub fn coordinate_msg(msg: Message, points: Arc<Mutex<PointStorage>>) -> Result<TxOk, String> {
-        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
+    pub fn free_transaction(&mut self, transaction: Transaction) -> Result<(), String> {
+        let client_id = transaction.client_id;
+        let record = self.points.get_mut(&client_id).ok_or("Client not found")?;
+        record.transaction = None;
+        Ok(())
+    }
+
+    pub fn coordinate_msg(msg: Message, storage: Arc<Mutex<PointStorage>>) -> Result<TxOk, String> {
+        let mut points = storage.lock().map_err(|_| "Failed to lock points")?;
         let tx = Transaction::new(points.self_address.clone(), &msg)?;
         let record = points.take_for(&tx)?;
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
@@ -235,21 +242,27 @@ impl PointStorage {
         let online = points.online;
         let pending = points.pending.clone();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        record.coordinate(tx, servers, online, pending)
+        let result = record.coordinate(tx.clone(), servers, online, pending);
+        let mut storage_aux = storage.lock().map_err(|_| "Failed to lock points")?;
+        storage_aux.free_transaction(tx)?;
+        result
     }
 
     pub fn coordinate_tx(
         tx: Transaction,
-        points: Arc<Mutex<PointStorage>>,
+        storage: Arc<Mutex<PointStorage>>,
     ) -> Result<TxOk, String> {
-        let mut points = points.lock().map_err(|_| "Failed to lock points")?;
+        let mut points = storage.lock().map_err(|_| "Failed to lock points")?;
         let record = points.take_for(&tx)?;
         let mut record = record.lock().map_err(|_| "Failed to lock points")?;
         let servers = points.get_other_servers();
         let online = points.online;
         let pending = points.pending.clone();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
-        record.coordinate(tx, servers, online, pending)
+        let result = record.coordinate(tx.clone(), servers, online, pending);
+        let mut storage_aux = storage.lock().map_err(|_| "Failed to lock points")?;
+        storage_aux.free_transaction(tx)?;
+        result
     }
 
     pub fn set_on_connect(storage: Arc<Mutex<Self>>) {
