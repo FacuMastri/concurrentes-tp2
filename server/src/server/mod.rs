@@ -1,5 +1,6 @@
 mod message;
 mod pending_transactions;
+mod ping;
 mod point_record;
 mod point_storage;
 mod transaction;
@@ -17,15 +18,16 @@ use std::{
     thread::{self, JoinHandle},
     time::Duration,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
+use crate::server::ping::{ping_to, PingRequest, PingResponse};
 use crate::server::{
     message::{receive_from, respond_to, SyncRequest},
     transaction::TransactionAction,
 };
 
 use self::{
-    message::{ConnectRequest, CONNECT, SYNC, TRANSACTION},
+    message::{ConnectRequest, CONNECT, PING, SYNC, TRANSACTION},
     transaction::{Transaction, TxOk},
 };
 
@@ -40,6 +42,8 @@ pub struct Server {
     handlers: Vec<JoinHandle<()>>,
     points: Arc<Mutex<PointStorage>>,
 }
+
+const PING_INTERVAL: u64 = 1000;
 
 impl Server {
     /// Creates a new server that listens on the given address.
@@ -65,6 +69,7 @@ impl Server {
 
         self.spawn_logger(3000);
         self.spawn_pending_handler();
+        self.spawn_ping_handler();
 
         thread::spawn(move || {
             debug!("Listening on {}", self.address);
@@ -198,6 +203,7 @@ impl Server {
             CONNECT => Self::handle_server_connection(stream, points),
             SYNC => Self::handle_server_sync(stream, points),
             TRANSACTION => Self::handle_server_transaction(stream, points),
+            PING => Self::handle_server_ping(stream),
             _ => Err("Unknown message type".to_string()),
         };
 
@@ -315,5 +321,45 @@ impl Server {
                 }
             }
         }
+    }
+    fn handle_server_ping(mut stream: TcpStream) -> Result<(), String> {
+        let res = receive_from(&mut stream)?;
+
+        let _req: PingRequest =
+            serde_json::from_slice(&res).map_err(|_| "Failed to parse ping request")?;
+
+        let _res: PingResponse = PingResponse {};
+
+        let serialized_res =
+            serde_json::to_string(&_res).expect("Failed to serialize ping response");
+
+        respond_to(&mut stream, serialized_res)
+    }
+    fn spawn_ping_handler(&mut self) {
+        let points = self.points.clone();
+        let handler = thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(PING_INTERVAL));
+            let points = points.lock().unwrap();
+            let other_servers = points.get_other_servers();
+            let pending = points.pending.clone();
+            drop(points);
+            let mut ping_response = false;
+            for server in other_servers {
+                if let Ok(_response) = ping_to(&server) {
+                    trace!("Ping to {} successful", server);
+                    ping_response = true;
+                    break;
+                } else {
+                    trace!("Ping to {} failed", server);
+                }
+            }
+            if ping_response {
+                pending.connect();
+            } else {
+                pending.disconnect();
+            }
+        });
+
+        self.handlers.push(handler);
     }
 }

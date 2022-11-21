@@ -4,6 +4,7 @@ use std::{
 };
 
 use std_semaphore::Semaphore;
+use tracing::{debug, trace};
 
 use super::transaction::Transaction;
 
@@ -67,6 +68,7 @@ impl PendingTransactions {
     pub fn disconnect(&self) {
         let mut connected = self.connected.lock().expect("Could not lock connected");
         if *connected {
+            trace!("Lost connection");
             self.online.acquire();
             *connected = false;
         }
@@ -77,6 +79,7 @@ impl PendingTransactions {
         if !*connected {
             let on_connect = self.on_connect.lock().expect("Could not lock on_connect");
             let on_connect = on_connect.as_ref().expect("on_connect is None");
+            debug!("Reconnected");
             on_connect();
             self.online.release();
             *connected = true;
