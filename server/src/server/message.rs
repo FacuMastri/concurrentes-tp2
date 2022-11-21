@@ -170,7 +170,7 @@ pub fn sync_with(addr: &String) -> Result<PointMap, String> {
     // Remove transactions from the point map
     let mut points = res.points;
     for (_, point) in points.iter_mut() {
-        let point = point.clone();
+        let point = point.0.clone();
         let point = point.lock();
         if let Ok(mut point) = point {
             point.transaction = None;

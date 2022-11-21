@@ -41,13 +41,6 @@ impl PointRecord {
     }
 }
 
-impl fmt::Debug for PointRecord {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let points = self.points.lock().map_err(|_| fmt::Error)?;
-        write!(f, "Points: {:?}. Locked points: {:?}", points.0, points.1)
-    }
-}
-
 impl Points {
     /// Prepares the transaction
     /// Returns (abort, streams)
@@ -284,6 +277,24 @@ impl Points {
             }
         }
         info!("Applied {:?}.", transaction);
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct SafePointRecord(pub Arc<Mutex<PointRecord>>);
+
+impl fmt::Debug for SafePointRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let record = self.0.lock().map_err(|_| fmt::Error)?;
+        let points = record.points.clone();
+        let points = points.lock().map_err(|_| fmt::Error)?;
+        write!(f, "{:?} Available [{:?} Locked]", points.0, points.1)
+    }
+}
+
+impl SafePointRecord {
+    pub fn new() -> Self {
+        Self(Arc::new(Mutex::new(PointRecord::new())))
     }
 }
 

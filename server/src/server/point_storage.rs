@@ -13,13 +13,13 @@ use super::{
         SyncResponse, TIMEOUT,
     },
     pending_transactions::PendingTransactions,
-    point_record::PointRecord,
+    point_record::{PointRecord, SafePointRecord},
     transaction::{Transaction, TransactionState, TxOk},
 };
 use points::Message;
 use tracing::{debug, error, info};
 
-pub type PointMap = HashMap<u16, Arc<Mutex<PointRecord>>>;
+pub type PointMap = HashMap<u16, SafePointRecord>;
 
 #[derive(Debug)]
 pub struct PointStorage {
@@ -71,7 +71,8 @@ impl PointStorage {
     pub fn get_point_record(&mut self, client_id: u16) -> Arc<Mutex<PointRecord>> {
         self.points
             .entry(client_id)
-            .or_insert_with(|| Arc::new(Mutex::new(PointRecord::new())))
+            .or_insert_with(SafePointRecord::new)
+            .0
             .clone()
     }
 
