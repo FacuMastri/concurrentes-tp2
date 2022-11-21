@@ -21,9 +21,9 @@ Deberán implementar un conjunto de aplicaciones en Rust que modele el sistema d
 - [x] En el caso de pagar un café con puntos, los mismos se bloquean, pero no se descuentan hasta que el café fue efectivamente entregado al cliente.
 - [x] La cafetera puede fallar en preparar la bebida con cierta probabilidad, debiendo devolver los puntos.
 - [x] El sistema es distribuido, cada local de Internet of Coffee tiene un servidor que mantiene los estados de cuenta. Las cafeteras se conectan con su servidor local.
-- [ ] Debido a que se encuentran por todo el país, en algunos casos con muy mala conexión, los servidores pueden entrar y salir de la red espontáneamente.
-  - [ ] Mientras se encuentran fuera de red, los servidores pueden seguir acumulando puntos en las cuentas. No así retirar.
-  - [ ] Al volver a conectarse, deben sincronizar los estados de cuenta
+- [x] Debido a que se encuentran por todo el país, en algunos casos con muy mala conexión, los servidores pueden entrar y salir de la red espontáneamente.
+  - [x] Mientras se encuentran fuera de red, los servidores pueden seguir acumulando puntos en las cuentas. No así retirar.
+  - [x] Al volver a conectarse, deben sincronizar los estados de cuenta
 
 ## Requerimientos no funcionales
 
