@@ -78,7 +78,7 @@ impl Points {
                     match state {
                         TransactionState::Proceed => {
                             debug!(
-                                "Received APROVE message for transaction with timestamp {}.",
+                                "Received APPROVE message for transaction with timestamp {}.",
                                 transaction.timestamp
                             );
                             proceed += 1
