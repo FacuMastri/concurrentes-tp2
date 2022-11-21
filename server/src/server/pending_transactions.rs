@@ -12,7 +12,7 @@ pub struct PendingTransactions {
     semaphore: Semaphore,
     online: Semaphore,
     connected: Mutex<bool>,
-    on_connect: Box<dyn Fn() -> ()>,
+    on_connect: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
 }
 
 impl std::fmt::Debug for PendingTransactions {
@@ -30,12 +30,13 @@ impl PendingTransactions {
             semaphore: Semaphore::new(0),
             online: Semaphore::new(1),
             connected: Mutex::new(true),
-            on_connect: Box::new(|| {}),
+            on_connect: Mutex::new(Some(Box::new(|| {}))),
         })
     }
 
-    pub fn set_on_connect(&mut self, on_connect: Box<dyn Fn() -> ()>) {
-        self.on_connect = on_connect;
+    pub fn set_on_connect(&self, on_connect: Box<dyn Fn() + Send + Sync>) {
+        let mut lock = self.on_connect.lock().expect("Could not lock on_connect");
+        *lock = Some(on_connect);
     }
 
     /// Adds an transaction to the queue.
@@ -74,7 +75,9 @@ impl PendingTransactions {
     pub fn connect(&self) {
         let mut connected = self.connected.lock().expect("Could not lock connected");
         if !*connected {
-            (self.on_connect)();
+            let on_connect = self.on_connect.lock().expect("Could not lock on_connect");
+            let on_connect = on_connect.as_ref().expect("on_connect is None");
+            on_connect();
             self.online.release();
             *connected = true;
         }

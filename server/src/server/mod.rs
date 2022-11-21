@@ -254,13 +254,12 @@ impl Server {
         let tx: Transaction =
             serde_json::from_slice(&res).map_err(|_| "Failed to parse transaction")?;
         // debug!("Received: {:?}", tx);
-        let action;
-        match tx.action {
-            TransactionAction::Add => action = "ADD",
-            TransactionAction::Lock => action = "LOCK",
-            TransactionAction::Free => action = "FREE",
-            TransactionAction::Consume => action = "CONSUME",
-        }
+        let action = match tx.action {
+            TransactionAction::Add => "ADD",
+            TransactionAction::Lock => "LOCK",
+            TransactionAction::Free => "FREE",
+            TransactionAction::Consume => "CONSUME",
+        };
         debug!(
             "Received transaction from coordinator '{}' with timestamp {} for client {} to {} {} points.",
             tx.coordinator, tx.timestamp, tx.client_id, action, tx.points

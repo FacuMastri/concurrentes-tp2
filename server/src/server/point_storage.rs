@@ -254,7 +254,7 @@ impl PointStorage {
 
     pub fn set_on_connect(storage: Arc<Mutex<Self>>) {
         let lock = storage.clone();
-        let mut lock = lock.lock().unwrap();
+        let lock = lock.lock().unwrap();
 
         let pending = lock.pending.clone();
         pending.set_on_connect(Box::new(move || {
