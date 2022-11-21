@@ -53,7 +53,7 @@ impl From<MessageBytes> for Message {
 }
 
 impl Message {
-    pub fn handle_locally(&self) -> Result<(), String> {
+    pub fn handle_trivially(&self) -> Result<(), String> {
         let err = "Could not handle message locally".to_string();
 
         let order = match self {

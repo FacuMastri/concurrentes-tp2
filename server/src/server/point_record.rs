@@ -246,33 +246,17 @@ impl Points {
     pub fn apply(&mut self, transaction: Transaction) {
         match transaction.action {
             TransactionAction::Add => {
-                debug!(
-                    "Adding {} points for client id {}.",
-                    transaction.points, transaction.client_id
-                );
                 self.0 += transaction.points;
             }
             TransactionAction::Lock => {
-                debug!(
-                    "Locking {} points for client id {}.",
-                    transaction.points, transaction.client_id
-                );
                 self.0 -= transaction.points;
                 self.1 += transaction.points;
             }
             TransactionAction::Free => {
-                debug!(
-                    "Freeing {} points for client id {}.",
-                    transaction.points, transaction.client_id
-                );
                 self.0 += transaction.points;
                 self.1 -= transaction.points;
             }
             TransactionAction::Consume => {
-                debug!(
-                    "Consuming {} points for client id {}.",
-                    transaction.points, transaction.client_id
-                );
                 self.1 -= transaction.points;
             }
         }

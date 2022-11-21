@@ -141,27 +141,13 @@ impl Server {
         stream: &mut TcpStream,
         points: Arc<Mutex<PointStorage>>,
     ) {
-        // info!("Received {:?}", msg);
-        match &msg {
-            Message::LockOrder(order) => info!(
-                "Received LOCK POINTS {} request for client {}.",
-                order.action.points(),
-                order.client_id
-            ),
-            Message::FreeOrder(order) => info!(
-                "Received FREE POINTS {} request for client {}.",
-                order.action.points(),
-                order.client_id
-            ),
-            Message::CommitOrder(order) => info!(
-                "Received ADD POINTS {} request for client {}.",
-                order.action.points(),
-                order.client_id
-            ),
-        }
+        info!("Received {:?}", msg);
 
-        let result = match msg.handle_locally() {
-            Ok(()) => Ok(()),
+        let result = match msg.handle_trivially() {
+            Ok(()) => {
+                debug!("Handled trivially {:?}", msg);
+                Ok(())
+            }
             Err(_) => Self::handle_client_message_distributively(msg, points),
         };
 
