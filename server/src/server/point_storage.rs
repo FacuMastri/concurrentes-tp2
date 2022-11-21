@@ -243,6 +243,7 @@ impl PointStorage {
         let pending = points.pending.clone();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
         let result = record.coordinate(tx.clone(), servers, online, pending);
+        drop(record);
         let mut storage_aux = storage.lock().map_err(|_| "Failed to lock points")?;
         storage_aux.free_transaction(tx)?;
         result
@@ -260,6 +261,7 @@ impl PointStorage {
         let pending = points.pending.clone();
         drop(points); // q: Are these dropped when returning err ?. a: Yes (copilot says)
         let result = record.coordinate(tx.clone(), servers, online, pending);
+        drop(record);
         let mut storage_aux = storage.lock().map_err(|_| "Failed to lock points")?;
         storage_aux.free_transaction(tx)?;
         result

@@ -19,7 +19,6 @@ pub struct Points(pub usize, pub usize);
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PointRecord {
-    // available points / locked points
     pub points: Arc<Mutex<Points>>,
     pub transaction: Option<Transaction>,
 }
@@ -220,10 +219,6 @@ impl Points {
     /// If the transaction is an add, the points are added (increasing the available points)
     /// If the transaction is a consume, the points are subtracted (decreasing the locked points)
     pub fn apply(&mut self, transaction: Transaction) {
-        info!(
-            "Applying commited transaction with timestamp {}.",
-            transaction.timestamp
-        );
         match transaction.action {
             TransactionAction::Add => {
                 debug!(
@@ -256,6 +251,7 @@ impl Points {
                 self.1 -= transaction.points;
             }
         }
+        info!("Applied {:?}.", transaction);
     }
 }
 
