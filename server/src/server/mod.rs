@@ -11,11 +11,12 @@ use points::{
     SERVER_MESSAGE,
 };
 
+use std::thread::JoinHandle;
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     sync::{Arc, Mutex},
-    thread::{self, JoinHandle},
+    thread::{self},
     time::Duration,
 };
 use tracing::{debug, error, info, trace};
@@ -25,6 +26,7 @@ use crate::server::{
     message::{receive_from, respond_to, SyncRequest},
     transaction::TransactionAction,
 };
+use crate::threadpool::{Builder, ThreadPool};
 
 use self::{
     message::{ConnectRequest, CONNECT, PING, SYNC, TRANSACTION},
@@ -39,11 +41,15 @@ use self::{
 pub struct Server {
     address: String,
     listener: TcpListener,
-    handlers: Vec<JoinHandle<()>>,
     points: Arc<Mutex<PointStorage>>,
+    threadpool: ThreadPool,
 }
 
 const PING_INTERVAL: u64 = 1000;
+
+const N_THREADS: usize = 10;
+
+const INTERVAL_LOGGER: u64 = 3000;
 
 impl Server {
     /// Creates a new server that listens on the given address.
@@ -58,8 +64,8 @@ impl Server {
         Server {
             address: address.clone(),
             listener,
-            handlers: vec![],
             points: PointStorage::new(address, core_server_addr),
+            threadpool: Builder::new().num_threads(N_THREADS).build(),
         }
     }
 
@@ -67,7 +73,7 @@ impl Server {
     pub fn listen(mut self) -> JoinHandle<()> {
         let listener = self.listener.try_clone().unwrap();
 
-        self.spawn_logger(3000);
+        self.spawn_logger(INTERVAL_LOGGER);
         self.spawn_pending_handler();
         self.spawn_ping_handler();
 
@@ -82,12 +88,11 @@ impl Server {
 
     pub fn spawn_logger(&mut self, interval: u64) {
         let points = self.points.clone();
-        let handler = thread::spawn(move || loop {
+        self.threadpool.execute(move || loop {
             thread::sleep(Duration::from_millis(interval));
             let points = points.lock().unwrap();
-            debug!("{:#?}", points);
+            debug!("Points: {:?}", points);
         });
-        self.handlers.push(handler);
     }
 
     /// Handles a stream by spawning a new thread to handle it.
@@ -110,11 +115,9 @@ impl Server {
     /// Spawns a new thread to handle a client connection.
     fn spawn_client_connection_handler(&mut self, stream: TcpStream) {
         let points = self.points.clone();
-        let handler = thread::spawn(move || {
+        self.threadpool.execute(move || {
             Self::connection_handler(stream, points);
         });
-
-        self.handlers.push(handler);
     }
 
     /// Handles messages from a client connection while the connection is open.
@@ -178,12 +181,9 @@ impl Server {
                 return;
             }
         }
-
-        let handler = thread::spawn(move || {
+        self.threadpool.execute(move || {
             Self::server_message_handler(stream, points);
         });
-
-        self.handlers.push(handler);
     }
 
     /// Handles the received message from another server.
@@ -292,11 +292,9 @@ impl Server {
 
     fn spawn_pending_handler(&mut self) {
         let storage = self.points.clone();
-        let handler = thread::spawn(move || {
+        self.threadpool.execute(|| {
             Self::pending_handler(storage);
         });
-
-        self.handlers.push(handler);
     }
 
     fn pending_handler(storage: Arc<Mutex<PointStorage>>) {
@@ -339,7 +337,7 @@ impl Server {
     }
     fn spawn_ping_handler(&mut self) {
         let storage = self.points.clone();
-        let handler = thread::spawn(move || loop {
+        self.threadpool.execute(move || loop {
             thread::sleep(Duration::from_millis(PING_INTERVAL));
             let points = storage.lock().expect("Failed to lock points");
             let other_servers = points.get_other_servers();
@@ -365,7 +363,5 @@ impl Server {
                 pending.disconnect();
             }
         });
-
-        self.handlers.push(handler);
     }
 }
