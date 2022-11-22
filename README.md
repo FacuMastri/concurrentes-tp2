@@ -53,8 +53,9 @@ La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y 
 #### Supuestos
 
 - Se asume que las cafeteras no pierden conexión con el servidor local.
-- Se asume que los servidores pueden perder conexión con la red, pero siguen siendo parte de la misma durante toda la ejecución
+- Se asume que los servidores pueden perder conexión con la red, pero siguen siendo parte de la misma durante toda la ejecución.
 - Se asume que no habrá agentes externos al sistema que intenten afectarlo.
+- El proceso del servidor no es interrumpido de manera inesperada.
 
 ### Cafetera `coffee_maker`
 
@@ -171,13 +172,13 @@ Los **tipos** de comunicación son:
 
 - `PING`
   - Se utiliza para verificar si el servidor tiene conexión.
-  - Secuencia: `PingRequest` -> `PingResponse`
+  - Secuencia: `PingRequest` , `PingResponse`
 - `CONNECT`
   - Se utiliza para conectar un nuevo servidor a la red.
-  - Secuencia: `ConnectRequest(new_server)` -> `ConnectResponse(servers)`
+  - Secuencia: `ConnectRequest(new_server)` , `ConnectResponse(servers)`
 - `SYNC`
   - Se utiliza para sincronizar el estado de las cuentas
-  - Secuencia: `SyncRequest` -> `SyncResponse(point_map)`
+  - Secuencia: `SyncRequest` , `SyncResponse(point_map)`
 - `TRANSACTION`
   - Se utiliza para realizar una [transacción distribuida](#transacciones_distribuidas).
 
@@ -212,6 +213,8 @@ B-->>A: Rta
 <details>
 
 <summary><h4>Detalles de Implementación</h4></summary>
+
+##### Diagrama de Clases
 
 ```mermaid
 sequenceDiagram
