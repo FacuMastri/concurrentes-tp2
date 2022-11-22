@@ -88,7 +88,7 @@ flowchart LR
 - `OrderHandler`: Prepara los cafes. Hay uno por dispenser.
 - `PointStorage`: Se encarga de las operaciones de puntos, comunicándose con el servidor local.
 
-<details open>
+<details>
 
 <summary><h4>Detalles de Implementación</h4></summary>
 
@@ -284,17 +284,60 @@ sequenceDiagram
 
 </details>
 
-<details>
+<details open>
 
 <summary><h4>Detalles de Implementación</h4></summary>
 
 ##### Diagrama de Clases
 
 ```mermaid
-sequenceDiagram
-  A->>B: Msg
-  B-->>A: Rta
+
+classDiagram
+  direction LR
+
+  class Server {
+    listener: TcpListener
+
+    listen()
+    handle_stream(TcpStream)
+  }
+  class PointStorage {
+    servers : Addr[]
+    pending : Transaction[]
+
+    coordinate(Transaction)
+    handle(Transaction)
+  }
+
+  class PointRecord {
+    available : Int
+    locked : Int
+
+    coordinate(Transaction)
+    handle(Transaction)
+    apply(Transaction)
+  }
+  class Transaction {
+    client : Id
+    amount : Int
+    action : TxAction
+    timestamp : Timestamp
+
+    olderThan(Transaction)
+  }
+
+  Server -- PointStorage : points
+  PointStorage *-- PointRecord : points
+  PointStorage o-- Transaction : pending
+  PointRecord -- Transaction : holder
+
 ```
+
+<!--
+##### Threads
+
+##### Manejo de Mensajes
+-->
 
 </details>
 
@@ -304,6 +347,16 @@ sequenceDiagram
 - que es
 > Detalles de implementación
 -->
+
+El controlador es un programa que esta por fuera del sistema principal.
+Se utiliza para enviar mensajes de **control** a los servidores.
+
+Estos mensajes pueden ser:
+
+- `Disconnect` : El servidor descartara todos los mensajes recibidos por otro servidor y fallara en enviar mensajes a otros servidores.
+- `Connect` : El servidor recuperara la capacidad de enviar y recibir mensajes a otros servidores.
+
+El programa escucha constantemente por `stdin` por comandos indicando la acción a realizar y la dirección del servidor.
 
 ## Desarrollo
 
