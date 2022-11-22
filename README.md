@@ -14,10 +14,12 @@ Coffeewards, es un sistema de puntos para fidelización de los clientes.
 
 Por cada compra que realizan los clientes, suman puntos que luego pueden canjear por cafes gratuitos.
 
+> **Nota:** Los gráficos y diagramas aquí presentes son son ilustrativos y apuntan a transmitir el concepto del sistema. Puede haber _abreviaciones_ o _alteraciones_ tanto de las _entidades_ como de las _operaciones_ en pos de _simplificar_ el entendimiento de las características esenciales.
+
 <!--
-- [ ] explicación del diseño y de las decisiones tomadas para la implementación
-- [ ] diagramas de threads y procesos, y la comunicación entre los mismos
-- [ ] diagramas de las entidades principales
+- [x] explicación del diseño y de las decisiones tomadas para la implementación
+- [x] diagramas de threads y procesos, y la comunicación entre los mismos
+- [x] diagramas de las entidades principales
 -->
 
 ## Diseño
@@ -53,8 +55,9 @@ La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y 
 #### Supuestos
 
 - Se asume que las cafeteras no pierden conexión con el servidor local.
-- Se asume que los servidores pueden perder conexión con la red, pero siguen siendo parte de la misma durante toda la ejecución
+- Se asume que los servidores pueden perder conexión con la red, pero siguen siendo parte de la misma durante toda la ejecución.
 - Se asume que no habrá agentes externos al sistema que intenten afectarlo.
+- El proceso del servidor no es interrumpido de manera inesperada.
 
 ### Cafetera `coffee_maker`
 
@@ -87,7 +90,7 @@ flowchart LR
 - `OrderHandler`: Prepara los cafes. Hay uno por dispenser.
 - `PointStorage`: Se encarga de las operaciones de puntos, comunicándose con el servidor local.
 
-<details open>
+<details>
 
 <summary><h4>Detalles de Implementación</h4></summary>
 
@@ -95,49 +98,49 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-participant oh as OrderHandler
-participant ps as PointStorage
+  participant oh as OrderHandler
+  participant ps as PointStorage
 
-oh ->> ps: reservar puntos
-ps -->> oh: Err
+  oh ->> ps: reservar puntos
+  ps -->> oh: Err
 
-note right of oh: Error
+  note over oh,ps: Error
 ```
 
 ##### Orden exitosa
 
 ```mermaid
 sequenceDiagram
-participant oh as OrderHandler
-participant ps as PointStorage
+  participant oh as OrderHandler
+  participant ps as PointStorage
 
-oh ->> ps: reservar puntos
-ps -->> oh: Ok
+  oh ->> ps: reservar puntos
+  ps -->> oh: Ok
 
-note right of oh: hace cafe correctamente
+  note over oh: hace cafe correctamente
 
-oh ->> ps: consumir puntos
-ps -->> oh: Ok
+  oh ->> ps: consumir puntos
+  ps -->> oh: Ok
 
-note right of oh: Éxito
+  note over oh,ps: Éxito
 ```
 
 ##### Orden fallida
 
 ```mermaid
 sequenceDiagram
-participant oh as OrderHandler
-participant ps as PointStorage
+  participant oh as OrderHandler
+  participant ps as PointStorage
 
-oh ->> ps: reservar puntos
-ps -->> oh: Ok
+  oh ->> ps: reservar puntos
+  ps -->> oh: Ok
 
-note right of oh: falla en hacer cafe
+  note over oh: falla en hacer cafe
 
-oh ->> ps: liberar puntos
-ps -->> oh: Ok
+  oh ->> ps: liberar puntos
+  ps -->> oh: Ok
 
-note right of oh: Error
+  note over oh,ps: Error
 ```
 
 </details>
@@ -171,13 +174,13 @@ Los **tipos** de comunicación son:
 
 - `PING`
   - Se utiliza para verificar si el servidor tiene conexión.
-  - Secuencia: `PingRequest` -> `PingResponse`
+  - Secuencia: `PingRequest` , `PingResponse`
 - `CONNECT`
   - Se utiliza para conectar un nuevo servidor a la red.
-  - Secuencia: `ConnectRequest(new_server)` -> `ConnectResponse(servers)`
+  - Secuencia: `ConnectRequest(new_server)` , `ConnectResponse(servers)`
 - `SYNC`
   - Se utiliza para sincronizar el estado de las cuentas
-  - Secuencia: `SyncRequest` -> `SyncResponse(point_map)`
+  - Secuencia: `SyncRequest` , `SyncResponse(point_map)`
 - `TRANSACTION`
   - Se utiliza para realizar una [transacción distribuida](#transacciones_distribuidas).
 
@@ -194,29 +197,212 @@ Cuando el servidor se **desconecta** (conectado -> desconectado) **detiene** el 
 
 Cuando el servidor se **reconecta** (desconectado -> conectado) se **sincroniza** con los demás servidores y **reanuda** el procesamiento de pendientes.
 
-<details>
+<details >
 <summary><h4 id="transacciones_distribuidas">Transacciones Distribuidas</h4></summary>
 
-Las transacciones se ejecutan en **2 fases**
+El servidor que recibe el pedido hace de **coordinador** de la transacción.
+
+Las transacciones se ejecutan en **2 fases**:
+
+1. Preparación [`PREPARE`]
+   - El coordinador intenta tomar el recurso necesario
+   - Verifica poder realizar la transacción
+   - Comienza una comunicación de tipo `TRANSACTION` con los demás servidores
+2. Finalización [`COMMIT`/`ABORT`]
+   - Al recibir el mensaje, los servidores locales:
+     - Intentan tomar el recurso necesario
+     - Verifican poder realizar la transacción
+     - Responden `Proceed` o `Abort` según corresponda
+   - Al recibir las respuestas
+     - Si mas de la mitad respondieron `Proceed`, y ninguno `Abort`:
+       - El coordinador envía `Proceed` a los demás servidores
+       - Todos los servidores aplican la transacción
+     - Si faltan suficientes respuestas o alguna es `Abort`:
+       - El coordinador envía `Abort` a los demás servidores
+       - Agrega la transacción a la lista de pendientes, si puede ser resuelta mas adelante
+
+Para prevenir deadlocks, se implementa **wait-die**
 
 ##### Transacción Exitosa
 
 ```mermaid
 sequenceDiagram
-A->>B: Msg
-B-->>A: Rta
+  participant co as Coordinator
+  participant s1 as Server
+  participant s2 as Server
+
+  co ->> s1: TRANSACTION
+  co ->> s2: TRANSACTION
+  s1 -->> co: Proceed
+  s2 -->> co: Proceed
+  co ->> s1: Proceed
+  co ->> s2: Proceed
+  note over co,s2: Transacción Exitosa
+```
+
+##### Transacción Abortada
+
+```mermaid
+sequenceDiagram
+  participant co as Coordinator
+  participant s1 as Server
+  participant s2 as Server
+
+  co ->> s1: TRANSACTION
+  co ->> s2: TRANSACTION
+
+  s1 -->> co: Proceed
+  s2 -->> co: Abort
+
+  co ->> s1: Abort
+  co ->> s2: Abort
+
+  note over co,s2: Transacción Fallida
+```
+
+##### Transacción Abortada por falta de respuestas
+
+```mermaid
+sequenceDiagram
+  participant co as Coordinator
+  participant s1 as Server
+  participant s2 as Server
+  participant s3 as Server
+
+  co ->> s1: TRANSACTION
+  co -x s2: TRANSACTION
+  co -x s3: TRANSACTION
+
+  s1 -->> co: Proceed
+
+  note over s2: Timeout
+  note over s3: Timeout
+
+  co ->> s1: Abort
+  co -->> s2: Abort
+  co -->> s3: Abort
+  note over co,s3: Transacción Fallida
 ```
 
 </details>
 
-<details>
+<details >
 
 <summary><h4>Detalles de Implementación</h4></summary>
 
+##### Diagrama de Clases
+
+```mermaid
+
+classDiagram
+  direction LR
+
+  class Server {
+    listener: TcpListener
+
+    listen()
+    handle_stream(TcpStream)
+  }
+  class PointStorage {
+    servers : Addr[]
+    pending : Transaction[]
+
+    coordinate(Message)
+    handle(Message)
+  }
+
+  class PointRecord {
+    available : Int
+    locked : Int
+
+    coordinate(Transaction)
+    handle(Transaction)
+    apply(Transaction)
+  }
+  class Transaction {
+    client : Id
+    amount : Int
+    action : TxAction
+    timestamp : Timestamp
+
+    olderThan(Transaction)
+  }
+
+  Server -- PointStorage : points
+  PointStorage *-- PointRecord : points
+  PointStorage o-- Transaction : pending
+  PointRecord -- Transaction : holder
+
+```
+
+##### Threads
+
+```mermaid
+flowchart LR
+    subgraph Local Server
+      s[Server]
+      c1(Client) --> s
+      c2(Client) --> s
+
+      s --> c(CoordinateTx)
+      s --> h(HandleTx)
+    end
+    subgraph External Processes
+      c -.- eh1(HandleTx)
+      c -.- eh2(HandleTx)
+      h -.- ec(CoordinateTx)
+
+      eh1 --- s1[Server]
+      eh2 --- s2[Server]
+      ec --- s2
+    end
+```
+
+##### Secuencia de una orden
+
 ```mermaid
 sequenceDiagram
-A->>B: Msg
-B-->>A: Rta
+    participant c as Client
+    participant s as Server
+    participant ps as PointStorage
+    participant pr as PointRecord
+    participant e as External
+
+    c->>+s: Fill ( id: 1, amount: 1)
+
+    s ->>+ ps: coordinate( fill, 1, 1 )
+    ps --> pr: wait-die
+    ps ->> pr : coordinate( Transaction )
+
+    note over pr,e : Successful Transaction
+
+    pr ->> ps: Ok
+    ps ->> s: Ok
+
+    s ->>-c: Ok
+```
+
+##### Secuencia de una transacción
+
+```mermaid
+sequenceDiagram
+    participant e as ExternalServer
+    participant s as Server
+    participant ps as PointStorage
+    participant pr as PointRecord
+
+    e->>+s: Transaction
+
+    s ->> ps: handle( Transaction )
+    ps --> pr: wait-die
+    ps ->> pr: handle( Transaction )
+
+    pr -->> e : Proceed
+    e ->> pr: Proceed | Abort
+
+    note over pr : Apply | Abort
+
+    s -->-e: end connection
 ```
 
 </details>
@@ -227,6 +413,16 @@ B-->>A: Rta
 - que es
 > Detalles de implementación
 -->
+
+El controlador es un programa que esta por fuera del sistema principal.
+Se utiliza para enviar mensajes de **control** a los servidores.
+
+Estos mensajes pueden ser:
+
+- `Disconnect` : El servidor descartara todos los mensajes recibidos por otro servidor y fallara en enviar mensajes a otros servidores.
+- `Connect` : El servidor recuperara la capacidad de enviar y recibir mensajes a otros servidores.
+
+El programa escucha constantemente por `stdin` por comandos indicando la acción a realizar y la dirección del servidor.
 
 ## Desarrollo
 
