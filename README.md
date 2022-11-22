@@ -1,7 +1,7 @@
 <h1>
 Coffeewards
 
-<a href="docs/consigna.md)">
+<a href="docs/consigna.md">
   <img align="right" height="40"
   alt="consigna" src="https://github.com/concurrentes-fiuba/2022-2c-tp2-otra-cosa/blob/main/docs/consigna.md">
 </a>
