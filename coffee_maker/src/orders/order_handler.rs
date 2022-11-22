@@ -6,11 +6,12 @@ use futures::executor::block_on;
 use rand::Rng;
 use tracing::{debug, info, trace, warn};
 
-const SUCCESS_CHANCE: f64 = 1.0;
+pub const DEFAULT_SUCCESS_CHANCE: f64 = 1.0;
 const ORDER_MILLIS: u64 = 1000;
 
 pub struct OrderHandler {
     pub point_storage: Addr<PointStorage>,
+    pub success_chance: f64,
 }
 
 impl Actor for OrderHandler {
@@ -20,7 +21,7 @@ impl Actor for OrderHandler {
 impl OrderHandler {
     fn process_order(&self) -> Result<(), String> {
         thread::sleep(Duration::from_millis(ORDER_MILLIS));
-        let success = rand::thread_rng().gen_bool(SUCCESS_CHANCE);
+        let success = rand::thread_rng().gen_bool(self.success_chance);
         match success {
             true => Ok(()),
             false => Err(String::from("Order failed")),

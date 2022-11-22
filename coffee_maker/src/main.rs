@@ -14,17 +14,19 @@ const DEFAULT_ORDERS: &str = "../assets/orders.csv";
 enum Arguments {
     LocalServer = 1,
     Orders,
+    SuccessChance,
 }
 
 // Result with any error
 type Res = Result<(), Box<dyn std::error::Error>>;
 
-fn parse_args() -> (String, String) {
+fn parse_args() -> (String, String, f64) {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 2 {
         return (
             parse_addr(args[Arguments::LocalServer as usize].clone()),
             DEFAULT_ORDERS.to_string(),
+            DEFAULT_SUCCESS_CHANCE,
         );
     }
     let args: Vec<String> = std::env::args().collect();
@@ -32,9 +34,19 @@ fn parse_args() -> (String, String) {
         return (
             parse_addr(args[Arguments::LocalServer as usize].clone()),
             args[Arguments::Orders as usize].clone(),
+            DEFAULT_SUCCESS_CHANCE,
         );
     }
-    error!("Usage: coffee_maker <local_server> [<orders>]");
+    if args.len() == 4 {
+        return (
+            parse_addr(args[Arguments::LocalServer as usize].clone()),
+            args[Arguments::Orders as usize].clone(),
+            args[Arguments::SuccessChance as usize]
+                .parse::<f64>()
+                .unwrap(),
+        );
+    }
+    error!("Usage: coffee_maker <local_server> [<orders>] [<success_chance>]");
     exit(-1);
 }
 
@@ -46,7 +58,7 @@ async fn main() -> Res {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let (local_server_addr, orders_path) = parse_args();
+    let (local_server_addr, orders_path, success_chance) = parse_args();
 
     let point_storage = SyncArbiter::start(1, move || {
         PointStorage::new(local_server_addr.clone()).unwrap()
@@ -54,6 +66,7 @@ async fn main() -> Res {
 
     let order_handler = SyncArbiter::start(DISPENSERS, move || OrderHandler {
         point_storage: point_storage.clone(),
+        success_chance,
     });
 
     let order_handler_clone = order_handler.clone();
