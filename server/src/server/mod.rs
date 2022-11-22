@@ -752,4 +752,92 @@ mod tests {
             expected_result["points"].as_object().unwrap().clone()
         );
     }
+
+    #[test]
+    #[serial]
+    fn server_should_not_apply_use_points_order_when_offline() {
+        let expected_result = json!({
+        "points": {
+            "1": {
+                "points": [25, 0],
+                "transaction": null,
+            },
+            }
+        })
+        .to_string();
+        let mut server_1 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+
+        let mut server_2 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9001", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+
+        // Aplicamos una orden a los servidores que estan conectados
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9000",
+                "assets/orders-3-test.csv",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+        // Esperamos que la cafetera termine de procesar
+        coffee_maker.wait().unwrap();
+
+        // Desconectamos al server 9001
+        let disconnect = "d 9001";
+        let request_disconnect = Request::parse(disconnect);
+        let _ = request_disconnect.unwrap().send();
+
+        // Le ponemos una orden de USE POINTS al servidor 9001 desconectado
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9001",
+                "assets/orders-3-test-3.csv",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+
+        coffee_maker.wait().unwrap();
+
+        // Conectamos al servidor 9001
+        let connect = "c 9001";
+        let request_connect = Request::parse(connect);
+        let _ = request_connect.unwrap().send();
+
+        thread::sleep(Duration::from_millis(1000));
+
+        let synced_points_server_1 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
+                .expect("Failed to sync");
+        let synced_points_server_2 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9001".to_owned())
+                .expect("Failed to sync");
+
+        server_1.kill().expect("Failed to kill server 1");
+        server_2.kill().expect("Failed to kill server 2");
+
+        assert_eq!(synced_points_server_1, expected_result);
+        assert_eq!(synced_points_server_2, expected_result);
+    }
 }
