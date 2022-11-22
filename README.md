@@ -221,7 +221,8 @@ Las transacciones se ejecutan en **2 fases**:
        - El coordinador envía `Abort` a los demás servidores
        - Agrega la transacción a la lista de pendientes, si puede ser resuelta mas adelante
 
-Para prevenir deadlocks, se implementa **wait-die**
+Debido a su funcionamiento, bloqueando un solo recurso y resolviendo de manera consiguiente, no surgen **deadlocks**.
+Aun asi se implementa un mecanismo simil wait-die para cancelar transacciones.
 
 ##### Transacción Exitosa
 
@@ -371,7 +372,6 @@ sequenceDiagram
     c->>+s: Fill ( id: 1, amount: 1)
 
     s ->>+ ps: coordinate( fill, 1, 1 )
-    ps --> pr: wait-die
     ps ->> pr : coordinate( Transaction )
 
     note over pr,e : Successful Transaction
@@ -394,7 +394,6 @@ sequenceDiagram
     e->>+s: Transaction
 
     s ->> ps: handle( Transaction )
-    ps --> pr: wait-die
     ps ->> pr: handle( Transaction )
 
     pr -->> e : Proceed
