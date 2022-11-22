@@ -428,12 +428,26 @@ El programa escucha constantemente por `stdin` por comandos indicando la acción
 
 ## Ejecución
 
-Suponiendo que nos encontramos en el `root` del proyecto.
+Suponiendo que nos encontramos en el _root_ del proyecto.
 
 - `make` corre `fmt`, `test` y `clippy` para el espacio de trabajo.
-- `cargo run --bin coffee_maker <local_server> [<orders>] [sucess_chance]`
-- `cargo run --bin local_server <address> [<known_server_address>]`
-- `cargo run --bin controller`
+- **Coffee maker:** `cargo run --bin coffee_maker <local_server> [<orders>] [sucess_chance]`
+- **Local server:** `cargo run --bin local_server <address> [<known_server_address>]`
+- **Controller:** `cargo run --bin controller`
   - `<Disconnect/Connect> <address>`
+- **Tests:** `cargo test`
 
 > **Nota:** Las direcciones son de la forma `ip:puerto` o `puerto` (en cuyo caso se usa `localhost`)
+
+### Crates utilizados
+
+Los crates utilizados para el presente trabajo práctico fueron:
+
+- **futures:** para el uso de futures dentro del contexto de actores en la implementación de la cafetera.
+- **actix** y **actix-rt:** para la implementación de actores en la cafetera.
+- **tracing** y **tracing-subscriber:** para loggear eventos tanto en la cafetera como en el servidor.
+- **rayon:** para procesar paralelamente los streams dentro del servidor.
+- **serde** y **serde_json:** para la serialización y deserialización de los mensajes.
+- **num_cpus:** para obtener la cantidad de CPU cores disponibles en el sistema. Usado en la threadpool.
+- **std-semaphore:** para la sincronización dentro de las transacciones pendientes (estados online y offline).
+- **serial_test:** para serializar la ejecución de los tests de integración.
