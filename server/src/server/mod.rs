@@ -386,10 +386,49 @@ impl Server {
 #[cfg(test)]
 mod tests {
     use crate::server::message::{send_message_to, SyncRequest, SYNC};
+    use points::{parse_addr, ControlMessage, CONTROL_MESSAGE};
     use serde_json::json;
+    use std::io::Write;
     use std::process::{Command, Stdio};
     use std::thread;
     use std::time::Duration;
+
+    // Este codigo es el mismo que en controller/src pero no lo podia importar :(
+    #[derive(Debug)]
+    struct Request {
+        msg: ControlMessage,
+        addr: String,
+    }
+
+    impl Request {
+        pub fn parse(line: &str) -> Option<Request> {
+            let mut parts = line.split_whitespace();
+            let msg = match parts.next() {
+                Some(t) => match t.chars().next() {
+                    Some('D') => ControlMessage::Disconnect,
+                    Some('d') => ControlMessage::Disconnect,
+                    Some('C') => ControlMessage::Connect,
+                    Some('c') => ControlMessage::Connect,
+                    _ => ControlMessage::Unknown,
+                },
+                _ => return None,
+            };
+            let addr = match parts.next() {
+                Some(addr) => parse_addr(addr.to_string()),
+                None => return None,
+            };
+            Some(Request { msg, addr })
+        }
+
+        pub fn send(self) -> Result<(), std::io::Error> {
+            let mut stream = std::net::TcpStream::connect(&self.addr)?;
+            let type_byte = [CONTROL_MESSAGE];
+            let bytes: [u8; 1] = self.msg.into();
+            stream.write_all(&type_byte)?;
+            stream.write_all(&bytes)?;
+            Ok(())
+        }
+    }
 
     #[test]
     fn two_servers_should_sync_with_50_points_on_client_2() {
@@ -431,12 +470,17 @@ mod tests {
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
-        let synced_points = send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
-            .expect("Failed to sync");
+        let synced_points_server_1 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
+                .expect("Failed to sync");
+        let synced_points_server_2 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9001".to_owned())
+                .expect("Failed to sync");
         server_1.kill().expect("Failed to kill server 1");
         server_2.kill().expect("Failed to kill server 2");
 
-        assert_eq!(synced_points, expected_result);
+        assert_eq!(synced_points_server_1, expected_result);
+        assert_eq!(synced_points_server_2, expected_result);
     }
 
     #[test]
@@ -485,7 +529,7 @@ mod tests {
             .expect("Failed to start server");
         thread::sleep(Duration::from_millis(1000));
 
-        // Syncing with the new server
+        // Syncing with the new server on port 9002
         let synced_points = send_message_to(SYNC, SyncRequest {}, &"localhost:9002".to_owned())
             .expect("Failed to sync");
         server_1.kill().expect("Failed to kill server 1");
@@ -494,4 +538,85 @@ mod tests {
 
         assert_eq!(synced_points, expected_result);
     }
+
+    #[test]
+    fn two_servers_with_no_points_should_get_synced_by_a_server_after_getting_online() {
+        let expected_result = json!({
+            "points": {
+                "2": {
+                    "points": [50, 0],
+                    "transaction": null,
+                }
+            }
+        })
+        .to_string();
+        let mut server_1 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9000"])
+            // .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+        let mut server_2 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9001", "9000"])
+            // .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+        let mut server_3 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9002", "9000"])
+            .spawn()
+            .expect("Failed to start server");
+
+        // Desconectamos al server 9001
+        let disconnect = "d 9001";
+        let request_disconnect = Request::parse(disconnect);
+        let _ = request_disconnect.unwrap().send();
+
+        thread::sleep(Duration::from_millis(1000));
+
+        // Le ponemos una orden al server que esta desconectado
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            // .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9001",
+                "assets/orders-3.csv",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+        // Esperamos que la cafetera termine de procesar
+        coffee_maker.wait().unwrap();
+
+        // Conectamos al server 9001
+        let connect = "c 9001";
+        let request_connect = Request::parse(connect);
+        let _ = request_connect.unwrap().send();
+
+        thread::sleep(Duration::from_millis(1000));
+
+        // Synceamos con los 3 server
+        let synced_points_server_1 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
+                .expect("Failed to sync");
+        let synced_points_server_2 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9001".to_owned())
+                .expect("Failed to sync");
+        let synced_points_server_3 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9002".to_owned())
+                .expect("Failed to sync");
+        server_3.kill().expect("Failed to kill server 3");
+        server_1.kill().expect("Failed to kill server 1");
+        server_2.kill().expect("Failed to kill server 2");
+
+        assert_eq!(synced_points_server_1, expected_result);
+        assert_eq!(synced_points_server_2, expected_result);
+        assert_eq!(synced_points_server_3, expected_result);
+    }
+
+    #[test]
 }
