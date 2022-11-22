@@ -936,10 +936,19 @@ mod tests {
     #[test]
     #[serial]
     fn server_should_restore_points_when_use_points_order_fails() {
-        let expected_result = json!({
+        let expected_final_result = json!({
         "points": {
             "1": {
                 "points": [25, 0],
+                "transaction": null,
+            },
+            }
+        })
+        .to_string();
+        let expected_reserved_result = json!({
+        "points": {
+            "1": {
+                "points": [20, 5],
                 "transaction": null,
             },
             }
@@ -995,6 +1004,16 @@ mod tests {
             .spawn()
             .expect("Failed to start coffee maker");
 
+        thread::sleep(Duration::from_millis(1000));
+
+        let sync_reserved_points_server_1 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
+                .expect("Failed to sync");
+
+        let sync_reserved_points_server_2 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9001".to_owned())
+                .expect("Failed to sync");
+
         coffee_maker.wait().unwrap();
 
         let synced_points_server_1 =
@@ -1007,8 +1026,10 @@ mod tests {
         server_1.kill().expect("Failed to kill server 1");
         server_2.kill().expect("Failed to kill server 2");
 
-        assert_eq!(synced_points_server_1, expected_result);
-        assert_eq!(synced_points_server_2, expected_result);
+        assert_eq!(sync_reserved_points_server_1, expected_reserved_result);
+        assert_eq!(sync_reserved_points_server_2, expected_reserved_result);
+        assert_eq!(synced_points_server_1, expected_final_result);
+        assert_eq!(synced_points_server_2, expected_final_result);
     }
 
     #[test]
@@ -1084,6 +1105,8 @@ mod tests {
             .spawn()
             .expect("Failed to start coffee maker");
 
+        // Sleep para dar tiempo a que al server 9001 le llegue la orden,
+        // reserve los puntos y pero no espere la confirmacion de la cafetera
         thread::sleep(Duration::from_millis(1000));
 
         let sync_reserved_points_server_1 =
