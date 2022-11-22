@@ -387,7 +387,7 @@ impl Server {
 mod tests {
     use crate::server::message::{send_message_to, SyncRequest, SYNC};
     use serde_json::json;
-    use std::process::Command;
+    use std::process::{Command, Stdio};
     use std::thread;
     use std::time::Duration;
 
@@ -404,17 +404,21 @@ mod tests {
         .to_string();
         let mut server_1 = Command::new("cargo")
             .args(["run", "--bin", "server", "9000"])
+            .stdout(Stdio::null())
             .spawn()
             .expect("Failed to start server");
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
         let mut server_2 = Command::new("cargo")
             .args(["run", "--bin", "server", "9001", "9000"])
+            .stdout(Stdio::null())
             .spawn()
             .expect("Failed to start server");
-        thread::sleep(Duration::from_millis(5000));
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
         let mut coffee_maker = Command::new("cargo")
             .current_dir("../")
+            .stdout(Stdio::null())
             .args([
                 "run",
                 "--bin",
@@ -424,12 +428,69 @@ mod tests {
             ])
             .spawn()
             .expect("Failed to start coffee maker");
+        // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
         let synced_points = send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
             .expect("Failed to sync");
         server_1.kill().expect("Failed to kill server 1");
         server_2.kill().expect("Failed to kill server 2");
+
+        assert_eq!(synced_points, expected_result);
+    }
+
+    #[test]
+    fn server_should_sync_after_connect_with_50_points_on_client_2() {
+        let expected_result = json!({
+            "points": {
+                "2": {
+                    "points": [50, 0],
+                    "transaction": null,
+                }
+            }
+        })
+        .to_string();
+        let mut server_1 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+        let mut server_2 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9001", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9000",
+                "assets/orders-3.csv",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+        // Esperamos que la cafetera termine de procesar
+        coffee_maker.wait().unwrap();
+
+        let mut new_server = Command::new("cargo")
+            .args(["run", "--bin", "server", "9002", "9000"])
+            .spawn()
+            .expect("Failed to start server");
+        thread::sleep(Duration::from_millis(1000));
+
+        // Syncing with the new server
+        let synced_points = send_message_to(SYNC, SyncRequest {}, &"localhost:9002".to_owned())
+            .expect("Failed to sync");
+        server_1.kill().expect("Failed to kill server 1");
+        server_2.kill().expect("Failed to kill server 2");
+        new_server.kill().expect("Failed to kill server 3");
 
         assert_eq!(synced_points, expected_result);
     }

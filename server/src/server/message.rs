@@ -72,7 +72,7 @@ pub fn write_message_to(
     Ok(stream)
 }
 
-/// Sends a message to the given address and waits for a response.
+/// Sends a message to the given address and waits (blocks) for a response.
 /// The message is serialized and sent as a byte array.
 /// The first byte is the message type.
 ///
