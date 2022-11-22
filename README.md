@@ -3,7 +3,7 @@ Coffeewards
 
 <a href="docs/consigna.md)">
   <img align="right" height="40"
-  alt="ES" src="https://cdn-icons-png.flaticon.com/512/2991/2991112.png">
+  alt="ES" src="https://cdn-icons-png.flaticon.com/512/2541/2541984.png">
 </a>
 
 </h1>
@@ -64,6 +64,84 @@ La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y 
 > Detalles de implementación
 -->
 
+El programa de la cafetera se encarga de recibir pedidos de los clientes de un archivo y procesar los.
+
+Este se implementa utilizando un esquema de actores:
+
+```mermaid
+flowchart LR
+    ot(OrderTaker) --> sa{ }
+    sa --> oh1(OrderHandler)
+    sa --> oh2(OrderHandler)
+    sa --> oh3(OrderHandler)
+    oh1 --> ps(PointStorage)
+    oh2 --> ps(PointStorage)
+    oh3 --> ps(PointStorage)
+```
+
+<!--
+![ActorsDiagram](docs/actors.svg)
+-->
+
+- `OrderTaker`: Recibe los pedidos y los delega
+- `OrderHandler`: Prepara los cafes. Hay uno por dispenser.
+- `PointStorage`: Se encarga de las operaciones de puntos, comunicándose con el servidor local.
+
+<details open>
+
+<summary><b> &nbsp Detalles de Implementación</b></summary>
+
+##### Error reservando puntos
+
+```mermaid
+sequenceDiagram
+participant oh as OrderHandler
+participant ps as PointStorage
+
+oh ->> ps: reservar puntos
+ps -->> oh: Err
+
+note right of oh: Error
+```
+
+##### Orden exitosa
+
+```mermaid
+sequenceDiagram
+participant oh as OrderHandler
+participant ps as PointStorage
+
+oh ->> ps: reservar puntos
+ps -->> oh: Ok
+
+note right of oh: hace cafe correctamente
+
+oh ->> ps: consumir puntos
+ps -->> oh: Ok
+
+note right of oh: Éxito
+```
+
+##### Orden fallida
+
+```mermaid
+sequenceDiagram
+participant oh as OrderHandler
+participant ps as PointStorage
+
+oh ->> ps: reservar puntos
+ps -->> oh: Ok
+
+note right of oh: falla en hacer cafe
+
+oh ->> ps: liberar puntos
+ps -->> oh: Ok
+
+note right of oh: Error
+```
+
+</details>
+
 ### Servidor local `server`
 
 <!--
@@ -71,7 +149,20 @@ La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y 
 - como maneja msgs ( con, sync, ping, tx )
 - offline -> pending
 > Detalles de implementación
+
 -->
+
+<details>
+
+<summary><b> &nbsp Detalles de Implementación</b></summary>
+
+```mermaid
+sequenceDiagram
+A->>B: Msg
+B-->>A: Rta
+```
+
+</details>
 
 ### Controlador `controller`
 
