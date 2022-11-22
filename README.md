@@ -14,7 +14,7 @@ Coffeewards, es un sistema de puntos para fidelización de los clientes.
 
 Por cada compra que realizan los clientes, suman puntos que luego pueden canjear por cafes gratuitos.
 
-> **Nota:** Los gráficos y diagramas aquí presentes son son ilustrativos y apuntan a transmitir el concepto del sistema. Puede haber _abreviaciones_ o _alteraciones_ tanto de las _entidades_ como de las _operaciones_ en pos de _simplificar_ el entendimiento de las características esenciales.
+> **Nota:** Los gráficos y diagramas aquí presentes son ilustrativos y apuntan a transmitir el concepto del sistema. Puede haber _abreviaciones_ o _alteraciones_ tanto de las _entidades_ como de las _operaciones_ en pos de _simplificar_ el entendimiento de las características esenciales.
 
 <!--
 - [x] explicación del diseño y de las decisiones tomadas para la implementación
