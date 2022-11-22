@@ -89,7 +89,7 @@ flowchart LR
 
 <details open>
 
-<summary><b> &nbsp Detalles de Implementación</b></summary>
+<summary><h4>Detalles de Implementación</h4></summary>
 
 ##### Error reservando puntos
 
@@ -152,9 +152,64 @@ note right of oh: Error
 
 -->
 
+El servidor local se encarga tanto de recibir y procesar los mensajes de los **clientes** como de **comunicarse** con el resto de los **servidores** para mantener **consistente** el estado de las cuentas.
+
+Toda la comunicación se realiza mediante **TCP**.
+
+#### Servicio a Clientes
+
+Cuando un cliente abre una conexión, el servidor crea un **hilo** para manejarla.
+En este recibe **pedidos** (`order`) y los maneja secuencialmente hasta que el cliente se desconecta.
+El servidor le **responderá** al cliente si el pedido fue exitoso o no.
+
+#### Comunicación entre Servidores
+
+Los servidores abren una **conexión** para cada comunicación con otro servidor.
+Una comunicación entrante se resuelve en un nuevo **hilo** y puede implicar el intercambio de **varios mensajes**.
+
+Los **tipos** de comunicación son:
+
+- `PING`
+  - Se utiliza para verificar si el servidor tiene conexión.
+  - Secuencia: `PingRequest` -> `PingResponse`
+- `CONNECT`
+  - Se utiliza para conectar un nuevo servidor a la red.
+  - Secuencia: `ConnectRequest(new_server)` -> `ConnectResponse(servers)`
+- `SYNC`
+  - Se utiliza para sincronizar el estado de las cuentas
+  - Secuencia: `SyncRequest` -> `SyncResponse(point_map)`
+- `TRANSACTION`
+  - Se utiliza para realizar una [transacción distribuida](#transacciones_distribuidas).
+
+#### Perdida de Conexión
+
+Cuando un servidor **no recibe respuesta de ningún otro** , tanto al realizar una transacción como al enviar pings, detecta que esta **desconectado**.
+
+Por otro lado, **al recibir** algún mensaje o respuesta detecta que esta **conectado**.
+
+Cuando una transacción falla, pero podría ser resuelta (eg. una carga de puntos estando desconectado) esta se guarda en una lista de **pendientes**,
+que se intentan de procesar en un **hilo** dedicado.
+
+Cuando el servidor se **desconecta** (conectado -> desconectado) **detiene** el procesamiento de pendientes.
+
+Cuando el servidor se **reconecta** (desconectado -> conectado) se **sincroniza** con los demás servidores y **reanuda** el procesamiento de pendientes.
+
+<details>
+<summary><h4 id="transacciones_distribuidas">Transacciones Distribuidas</h4></summary>
+
+##### Transacción Exitosa
+
+```mermaid
+sequenceDiagram
+A->>B: Msg
+B-->>A: Rta
+```
+
+</details>
+
 <details>
 
-<summary><b> &nbsp Detalles de Implementación</b></summary>
+<summary><h4>Detalles de Implementación</h4></summary>
 
 ```mermaid
 sequenceDiagram
