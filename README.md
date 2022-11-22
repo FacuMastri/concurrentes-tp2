@@ -87,7 +87,7 @@ flowchart LR
 ![ActorsDiagram](docs/actors.svg)
 -->
 
-- `OrderTaker`: Recibe los pedidos y los delega
+- `OrderTaker`: Recibe los pedidos y los delega.
 - `OrderHandler`: Prepara los cafes. Hay uno por dispenser.
 - `PointStorage`: Se encarga de las operaciones de puntos, comunicándose con el servidor local.
 
@@ -118,7 +118,7 @@ sequenceDiagram
   oh ->> ps: reservar puntos
   ps -->> oh: Ok
 
-  note over oh: hace cafe correctamente
+  note over oh: prepara cafe correctamente
 
   oh ->> ps: consumir puntos
   ps -->> oh: Ok
@@ -136,7 +136,7 @@ sequenceDiagram
   oh ->> ps: reservar puntos
   ps -->> oh: Ok
 
-  note over oh: falla en hacer cafe
+  note over oh: falla en preparar cafe
 
   oh ->> ps: liberar puntos
   ps -->> oh: Ok
@@ -160,13 +160,13 @@ El servidor local se encarga tanto de recibir y procesar los mensajes de los **c
 
 Toda la comunicación se realiza mediante **TCP**.
 
-#### Servicio a Clientes
+#### Servicio a clientes
 
 Cuando un cliente abre una conexión, el servidor crea un **hilo** para manejarla.
 En este recibe **pedidos** (`order`) y los maneja secuencialmente hasta que el cliente se desconecta.
 El servidor le **responderá** al cliente si el pedido fue exitoso o no.
 
-#### Comunicación entre Servidores
+#### Comunicación entre servidores
 
 Los servidores abren una **conexión** para cada comunicación con otro servidor.
 Una comunicación entrante se resuelve en un nuevo **hilo** y puede implicar el intercambio de **varios mensajes**.
@@ -174,58 +174,59 @@ Una comunicación entrante se resuelve en un nuevo **hilo** y puede implicar el 
 Los **tipos** de comunicación son:
 
 - `PING`
-  - Se utiliza para verificar si el servidor tiene conexión.
+  - Se utiliza para verificar si el servidor objetivo tiene conexión.
   - Secuencia: `PingRequest` , `PingResponse`
 - `CONNECT`
   - Se utiliza para conectar un nuevo servidor a la red.
   - Secuencia: `ConnectRequest(new_server)` , `ConnectResponse(servers)`
 - `SYNC`
-  - Se utiliza para sincronizar el estado de las cuentas
+  - Se utiliza para sincronizar el estado de las cuentas.
   - Secuencia: `SyncRequest` , `SyncResponse(point_map)`
 - `TRANSACTION`
   - Se utiliza para realizar una [transacción distribuida](#transacciones_distribuidas).
 
-#### Perdida de Conexión
+#### Perdida de conexión
 
-Cuando un servidor **no recibe respuesta de ningún otro** , tanto al realizar una transacción como al enviar pings, detecta que esta **desconectado**.
+Cuando un servidor **no recibe respuesta de ningún otro**, tanto al realizar una transacción como al enviar pings, detecta que está **desconectado**.
 
 Por otro lado, **al recibir** algún mensaje o respuesta detecta que esta **conectado**.
 
-Cuando una transacción falla, pero podría ser resuelta (eg. una carga de puntos estando desconectado) esta se guarda en una lista de **pendientes**,
+Cuando una transacción falla, pero podría ser resuelta (por ejemplo, una carga de puntos estando desconectado) esta se guarda en una lista de **pendientes**,
 que se intentan de procesar en un **hilo** dedicado.
 
-Cuando el servidor se **desconecta** (conectado -> desconectado) **detiene** el procesamiento de pendientes.
+Cuando el servidor se **desconecta** (pasa de estado conectado -> desconectado) **detiene** el procesamiento de pendientes.
 
-Cuando el servidor se **reconecta** (desconectado -> conectado) se **sincroniza** con los demás servidores y **reanuda** el procesamiento de pendientes.
+Cuando el servidor se **reconecta** (pasa de estado desconectado -> conectado), primero se **sincroniza** con los demás servidores y luego **reanuda** el procesamiento de 
+transacciones pendientes.
 
 <details >
-<summary><h4 id="transacciones_distribuidas">Transacciones Distribuidas</h4></summary>
+<summary><h4 id="transacciones_distribuidas">Transacciones distribuidas</h4></summary>
 
 El servidor que recibe el pedido hace de **coordinador** de la transacción.
 
 Las transacciones se ejecutan en **2 fases**:
 
 1. Preparación [`PREPARE`]
-   - El coordinador intenta tomar el recurso necesario
-   - Verifica poder realizar la transacción
-   - Comienza una comunicación de tipo `TRANSACTION` con los demás servidores
+   - El coordinador intenta tomar el recurso necesario.
+   - Verifica poder realizar la transacción.
+   - Comienza una comunicación de tipo `TRANSACTION` con los demás servidores.
 2. Finalización [`COMMIT`/`ABORT`]
    - Al recibir el mensaje, los servidores locales:
-     - Intentan tomar el recurso necesario
-     - Verifican poder realizar la transacción
-     - Responden `Proceed` o `Abort` según corresponda
+     - Intentan tomar el recurso necesario.
+     - Verifican poder realizar la transacción.
+     - Responden `Proceed` o `Abort` según corresponda.
    - Al recibir las respuestas
-     - Si mas de la mitad respondieron `Proceed`, y ninguno `Abort`:
-       - El coordinador envía `Proceed` a los demás servidores
-       - Todos los servidores aplican la transacción
+     - Si más de la mitad respondieron `Proceed`, y ninguno `Abort`:
+       - El coordinador envía `Proceed` a los demás servidores.
+       - Todos los servidores aplican la transacción.
      - Si faltan suficientes respuestas o alguna es `Abort`:
-       - El coordinador envía `Abort` a los demás servidores
-       - Agrega la transacción a la lista de pendientes, si puede ser resuelta mas adelante
+       - El coordinador envía `Abort` a los demás servidores.
+       - Agrega la transacción a la lista de pendientes, si puede ser resuelta más adelante.
 
 Debido a su funcionamiento, bloqueando un solo recurso y resolviendo de manera consiguiente, no surgen **deadlocks**.
-Aun asi se implementa un mecanismo simil wait-die para cancelar transacciones.
+Aun asi se implementa un mecanismo similar a `wait-die` para cancelar transacciones.
 
-##### Transacción Exitosa
+##### Transacción exitosa
 
 ```mermaid
 sequenceDiagram
@@ -242,7 +243,7 @@ sequenceDiagram
   note over co,s2: Transacción Exitosa
 ```
 
-##### Transacción Abortada
+##### Transacción abortada
 
 ```mermaid
 sequenceDiagram
@@ -262,7 +263,7 @@ sequenceDiagram
   note over co,s2: Transacción Fallida
 ```
 
-##### Transacción Abortada por falta de respuestas
+##### Transacción abortada por falta de respuestas
 
 ```mermaid
 sequenceDiagram
@@ -349,7 +350,7 @@ flowchart LR
       s --> c(CoordinateTx)
       s --> h(HandleTx)
     end
-    subgraph External Processes
+    subgraph External Servers
       c -.- eh1(HandleTx)
       c -.- eh2(HandleTx)
       h -.- ec(CoordinateTx)
@@ -414,22 +415,23 @@ sequenceDiagram
 > Detalles de implementación
 -->
 
-El controlador es un programa que esta por fuera del sistema principal.
+El controlador es un programa que está por fuera del sistema principal.
 Se utiliza para enviar mensajes de **control** a los servidores.
 
 Estos mensajes pueden ser:
 
-- `Disconnect` : El servidor descartara todos los mensajes recibidos por otro servidor y fallara en enviar mensajes a otros servidores.
-- `Connect` : El servidor recuperara la capacidad de enviar y recibir mensajes a otros servidores.
+- `Disconnect` : El servidor descartará todos los mensajes recibidos por otro servidor y fallará en enviar mensajes a otros servidores. Sin embargo, continúa
+recibiendo pedidos de las cafeteras.
+- `Connect` : El servidor recuperará la capacidad de enviar y recibir mensajes a otros servidores.
 
 El programa escucha constantemente por `stdin` por comandos indicando la acción a realizar y la dirección del servidor.
 
 ## Desarrollo
 
 - `make` en el directorio raíz corre `fmt`, `test` y `clippy` para el espacio de trabajo.
-- `coffee_maker <local_server> [<orders>]`
+- `coffee_maker <local_server> [<orders>] [sucess_chance]`
 - `local_server <address> [<known_server_address>]`
 - `controller`
   - `<Disconnect/Connect> <address>`
 
-> las direcciones son de la forma `ip:puerto` o `puerto` (en cuyo caso se usa `localhost`)
+> **Nota:** Las direcciones son de la forma `ip:puerto` o `puerto` (en cuyo caso se usa `localhost`)
