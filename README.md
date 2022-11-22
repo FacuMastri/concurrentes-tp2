@@ -50,9 +50,10 @@ Para reservar puntos se **requiere** que por lo menos la **mitad** de los servid
 En cambio, las otras transacciones (asumiendo que los puntos fueron previamente reservados si fuese necesario) no deberían fallar y pueden quedar pendientes hasta que sea posible resolverlas.
 
 Al **procesar una orden**, primero se reservan los puntos necesarios y al finalizarla se añaden/liberan/consumen los puntos reservados.
-La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y no mientras se prepara el café, lo cual permite que se puedan procesar pedidos de una misma cuenta **concurrente**.
+La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y no mientras se prepara el café, lo cual permite que se puedan procesar pedidos de una misma cuenta de manera
+**concurrente**.
 
-#### Supuestos
+#### Hipótesis y supuestos
 
 - Se asume que las cafeteras no pierden conexión con el servidor local.
 - Se asume que los servidores pueden perder conexión con la red, pero siguen siendo parte de la misma durante toda la ejecución.
@@ -67,9 +68,9 @@ La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y 
 > Detalles de implementación
 -->
 
-El programa de la cafetera se encarga de recibir pedidos de los clientes de un archivo y procesar los.
+El programa de la cafetera se encarga de recibir pedidos de los clientes desde un archivo `csv` y de procesarlos.
 
-Este se implementa utilizando un esquema de actores:
+Este se implementa utilizando un esquema de **modelo de actores**:
 
 ```mermaid
 flowchart LR
