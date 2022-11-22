@@ -481,6 +481,18 @@ mod tests {
             .expect("Failed to start coffee maker")
     }
 
+    fn disconnect_server(address: &str) {
+        let disconnect = "d ".to_string() + address;
+        let request_disconnect = Request::parse(disconnect.as_str());
+        let _ = request_disconnect.unwrap().send();
+    }
+
+    fn connect_server(address: &str) {
+        let connect = "c ".to_string() + address;
+        let request_connect = Request::parse(connect.as_str());
+        let _ = request_connect.unwrap().send();
+    }
+
     #[test]
     #[serial]
     fn two_servers_should_sync_with_50_points_on_client_2() {
@@ -579,9 +591,7 @@ mod tests {
         thread::sleep(Duration::from_millis(1000));
 
         // Desconectamos al server 9001
-        let disconnect = "d 9001";
-        let request_disconnect = Request::parse(disconnect);
-        let _ = request_disconnect.unwrap().send();
+        disconnect_server("9001");
 
         thread::sleep(Duration::from_millis(1000));
 
@@ -630,7 +640,10 @@ mod tests {
                     "transaction": null,
                 }
             }
-        });
+        })["points"]
+            .as_object()
+            .unwrap()
+            .clone();
         let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
@@ -644,9 +657,7 @@ mod tests {
         thread::sleep(Duration::from_millis(1000));
 
         // Desconectamos al server 9001
-        let disconnect = "d 9001";
-        let request_disconnect = Request::parse(disconnect);
-        let _ = request_disconnect.unwrap().send();
+        disconnect_server("9001");
 
         thread::sleep(Duration::from_millis(1000));
 
@@ -660,9 +671,7 @@ mod tests {
         coffee_maker.wait().unwrap();
 
         // Conectamos al server 9001
-        let connect = "c 9001";
-        let request_connect = Request::parse(connect);
-        let _ = request_connect.unwrap().send();
+        connect_server("9001");
 
         thread::sleep(Duration::from_millis(2000));
 
@@ -696,18 +705,9 @@ mod tests {
             .as_object()
             .unwrap()
             .clone();
-        assert_eq!(
-            synced_points_server_1,
-            expected_result["points"].as_object().unwrap().clone()
-        );
-        assert_eq!(
-            synced_points_server_2,
-            expected_result["points"].as_object().unwrap().clone()
-        );
-        assert_eq!(
-            synced_points_server_3,
-            expected_result["points"].as_object().unwrap().clone()
-        );
+        assert_eq!(synced_points_server_1, expected_result);
+        assert_eq!(synced_points_server_2, expected_result);
+        assert_eq!(synced_points_server_3, expected_result);
     }
 
     #[test]
@@ -736,18 +736,14 @@ mod tests {
         coffee_maker.wait().unwrap();
 
         // Desconectamos al server 9001
-        let disconnect = "d 9001";
-        let request_disconnect = Request::parse(disconnect);
-        let _ = request_disconnect.unwrap().send();
+        disconnect_server("9001");
 
         // Le ponemos una orden de USE POINTS al servidor 9001 desconectado
         let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-3.csv", None);
         coffee_maker.wait().unwrap();
 
         // Conectamos al servidor 9001
-        let connect = "c 9001";
-        let request_connect = Request::parse(connect);
-        let _ = request_connect.unwrap().send();
+        connect_server("9001");
 
         thread::sleep(Duration::from_millis(1000));
 
@@ -767,7 +763,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn three_server_should_sync_when_one_apply_a_use_points_order() {
+    fn three_servers_should_sync_when_one_apply_a_use_points_order() {
         let expected_result = json!({
         "points": {
             "1": {
@@ -1002,9 +998,7 @@ mod tests {
         thread::sleep(Duration::from_millis(1000));
 
         // Desconectamos al server 9001
-        let disconnect = "d 9001";
-        let request_disconnect = Request::parse(disconnect);
-        let _ = request_disconnect.unwrap().send();
+        disconnect_server("9001");
 
         coffee_maker.wait().unwrap();
 
@@ -1022,9 +1016,7 @@ mod tests {
         assert_eq!(sync_reserved_points_server_3, expected_reserved_points);
 
         // Conectamos el server 9001
-        let connect = "c 9001";
-        let request_connect = Request::parse(connect);
-        let _ = request_connect.unwrap().send();
+        connect_server("9001");
 
         thread::sleep(Duration::from_millis(1000));
 
