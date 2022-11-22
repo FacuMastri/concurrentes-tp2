@@ -387,7 +387,8 @@ impl Server {
 mod tests {
     use crate::server::message::{send_message_to, SyncRequest, SYNC};
     use points::{parse_addr, ControlMessage, CONTROL_MESSAGE};
-    use serde_json::json;
+    use serde_json::{json, Value};
+    use serial_test::serial;
     use std::io::Write;
     use std::process::{Command, Stdio};
     use std::thread;
@@ -431,6 +432,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn two_servers_should_sync_with_50_points_on_client_2() {
         let expected_result = json!({
             "points": {
@@ -484,6 +486,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn server_should_sync_after_connect_with_50_points_on_client_2() {
         let expected_result = json!({
             "points": {
@@ -540,6 +543,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn two_servers_with_no_points_should_get_synced_by_a_server_after_getting_online() {
         let expected_result = json!({
             "points": {
@@ -552,14 +556,14 @@ mod tests {
         .to_string();
         let mut server_1 = Command::new("cargo")
             .args(["run", "--bin", "server", "9000"])
-            // .stdout(Stdio::null())
+            .stdout(Stdio::null())
             .spawn()
             .expect("Failed to start server");
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
         let mut server_2 = Command::new("cargo")
             .args(["run", "--bin", "server", "9001", "9000"])
-            // .stdout(Stdio::null())
+            .stdout(Stdio::null())
             .spawn()
             .expect("Failed to start server");
         // El sleep es para dar tiempo a buildear al tirar un cargo run
@@ -579,7 +583,7 @@ mod tests {
         // Le ponemos una orden al server que esta desconectado
         let mut coffee_maker = Command::new("cargo")
             .current_dir("../")
-            // .stdout(Stdio::null())
+            .stdout(Stdio::null())
             .args([
                 "run",
                 "--bin",
@@ -619,4 +623,129 @@ mod tests {
     }
 
     #[test]
+    #[serial]
+    fn servers_should_sync_mutually_when_there_are_pending_transactions() {
+        let expected_result = json!({
+            "points": {
+                "1": {
+                    "points": [25, 0],
+                    "transaction": null,
+                },
+                "2": {
+                    "points": [50, 0],
+                    "transaction": null,
+                }
+            }
+        });
+        let mut server_1 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+        let mut server_2 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9001", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+        let mut server_3 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9002", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+
+        thread::sleep(Duration::from_millis(1000));
+
+        // Desconectamos al server 9001
+        let disconnect = "d 9001";
+        let request_disconnect = Request::parse(disconnect);
+        let _ = request_disconnect.unwrap().send();
+
+        thread::sleep(Duration::from_millis(1000));
+
+        // Le ponemos una orden al server que esta desconectado
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9001",
+                "assets/orders-3.csv",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+        // Esperamos que la cafetera termine de procesar
+        coffee_maker.wait().unwrap();
+
+        // Le ponemos una orden al resto de los servers conectados
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9000",
+                "assets/orders-3-test.csv",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+
+        coffee_maker.wait().unwrap();
+
+        // Conectamos al server 9001
+        let connect = "c 9001";
+        let request_connect = Request::parse(connect);
+        let _ = request_connect.unwrap().send();
+
+        thread::sleep(Duration::from_millis(2000));
+
+        // Synceamos con los 3 server
+        let synced_points_server_1 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
+                .expect("Failed to sync");
+        let synced_points_server_2 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9001".to_owned())
+                .expect("Failed to sync");
+        let synced_points_server_3 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9002".to_owned())
+                .expect("Failed to sync");
+        server_3.kill().expect("Failed to kill server 3");
+        server_1.kill().expect("Failed to kill server 1");
+        server_2.kill().expect("Failed to kill server 2");
+
+        // Sort the points to make the test deterministic
+        let synced_points_server_1: Value = serde_json::from_str(&synced_points_server_1).unwrap();
+        let synced_points_server_2: Value = serde_json::from_str(&synced_points_server_2).unwrap();
+        let synced_points_server_3: Value = serde_json::from_str(&synced_points_server_3).unwrap();
+        let synced_points_server_1 = synced_points_server_1["points"]
+            .as_object()
+            .unwrap()
+            .clone();
+        let synced_points_server_2 = synced_points_server_2["points"]
+            .as_object()
+            .unwrap()
+            .clone();
+        let synced_points_server_3 = synced_points_server_3["points"]
+            .as_object()
+            .unwrap()
+            .clone();
+        assert_eq!(
+            synced_points_server_1,
+            expected_result["points"].as_object().unwrap().clone()
+        );
+        assert_eq!(
+            synced_points_server_2,
+            expected_result["points"].as_object().unwrap().clone()
+        );
+        assert_eq!(
+            synced_points_server_3,
+            expected_result["points"].as_object().unwrap().clone()
+        );
+    }
 }
