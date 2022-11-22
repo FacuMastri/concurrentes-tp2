@@ -1134,4 +1134,139 @@ mod tests {
         assert_eq!(sync_final_points_server_1, expected_final_points);
         assert_eq!(sync_final_points_server_2, expected_final_points);
     }
+
+    #[test]
+    #[serial]
+    fn server_should_use_reserved_points_after_it_gets_online() {
+        let expected_reserved_points = json!({
+        "points": {
+            "1": {
+                "points": [20, 5],
+                "transaction": null,
+            },
+            }
+        })
+        .to_string();
+
+        let expected_final_points = json!({
+        "points": {
+            "1": {
+                "points": [20, 0],
+                "transaction": null,
+            },
+            }
+        })
+        .to_string();
+
+        let mut server_1 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+
+        let mut server_2 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9001", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+
+        let mut server_3 = Command::new("cargo")
+            .args(["run", "--bin", "server", "9002", "9000"])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server");
+
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
+        thread::sleep(Duration::from_millis(1000));
+
+        // Aplicamos una orden a los servidores que estan conectados
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9000",
+                "assets/orders-3-test.csv",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+        // Esperamos que la cafetera termine de procesar
+        coffee_maker.wait().unwrap();
+
+        // Le ponemos una orden de USE POINTS al servidor 9001, pero
+        // debe procesar bien la orden al tener una success_chance = 1
+        let mut coffee_maker = Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                "9001",
+                "assets/orders-3-test-3.csv",
+                "1",
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker");
+
+        // Sleep para dar tiempo a que al server 9001 le llegue la orden,
+        // reserve los puntos y pero no espere la confirmacion de la cafetera
+        thread::sleep(Duration::from_millis(1000));
+
+        // Desconectamos al server 9001
+        let disconnect = "d 9001";
+        let request_disconnect = Request::parse(disconnect);
+        let _ = request_disconnect.unwrap().send();
+
+        coffee_maker.wait().unwrap();
+
+        let sync_reserved_points_server_1 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
+                .expect("Failed to sync");
+
+        let sync_reserved_points_server_3 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9002".to_owned())
+                .expect("Failed to sync");
+
+        // El server 9001 se desconectó, entonces los demás no pueden seguir con la transaccion
+        // ya que nunca les llegó la confimacion de la cafetera del 9001
+        assert_eq!(sync_reserved_points_server_1, expected_reserved_points);
+        assert_eq!(sync_reserved_points_server_3, expected_reserved_points);
+
+        // Conectamos el server 9001
+        let connect = "c 9001";
+        let request_connect = Request::parse(connect);
+        let _ = request_connect.unwrap().send();
+
+        thread::sleep(Duration::from_millis(1000));
+
+        let sync_final_points_server_1 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9000".to_owned())
+                .expect("Failed to sync");
+        let sync_final_points_server_2 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9001".to_owned())
+                .expect("Failed to sync");
+        let sync_final_points_server_3 =
+            send_message_to(SYNC, SyncRequest {}, &"localhost:9002".to_owned())
+                .expect("Failed to sync");
+
+        server_1.kill().expect("Failed to kill server 1");
+        server_2.kill().expect("Failed to kill server 2");
+        server_3.kill().expect("Failed to kill server 3");
+
+        assert_eq!(sync_final_points_server_1, expected_final_points);
+        assert_eq!(sync_final_points_server_2, expected_final_points);
+        assert_eq!(sync_final_points_server_3, expected_final_points);
+    }
 }
