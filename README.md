@@ -14,7 +14,7 @@ Coffeewards, es un sistema de puntos para fidelización de los clientes.
 
 Por cada compra que realizan los clientes, suman puntos que luego pueden canjear por cafes gratuitos.
 
-> **Nota:** Los gráficos y diagramas aquí presentes son ilustrativos y apuntan a transmitir el concepto del sistema. Puede haber _abreviaciones_ o _alteraciones_ tanto de las _entidades_ como de las _operaciones_ en pos de _simplificar_ el entendimiento de las características esenciales.
+> **Nota:** Los gráficos y diagramas aquí presentes son ilustrativos y apuntan a transmitir el concepto del sistema. Pueden presentarse _abreviaciones_ o _alteraciones_ tanto de las _entidades_ como de las _operaciones_ en pos de _simplificar_ el entendimiento de las características esenciales.
 
 <!--
 - [x] explicación del diseño y de las decisiones tomadas para la implementación
@@ -47,7 +47,7 @@ Se distinguen 4 acciones principales:
 - **Añadir** puntos `Add`
 
 Para reservar puntos se **requiere** que por lo menos la **mitad** de los servidores estén **disponibles**.
-En cambio, las otras transacciones ( asumiendo que los puntos fueron previamente reservados si fuese necesario ) no deberían fallar y quedan pueden quedar pendientes hasta que sea posible resolverlas.
+En cambio, las otras transacciones (asumiendo que los puntos fueron previamente reservados si fuese necesario) no deberían fallar y pueden quedar pendientes hasta que sea posible resolverlas.
 
 Al **procesar una orden**, primero se reservan los puntos necesarios y al finalizarla se añaden/liberan/consumen los puntos reservados.
 La respectiva cuenta solo se bloquea mientras se procesan estas transacciones y no mientras se prepara el café, lo cual permite que se puedan procesar pedidos de una misma cuenta **concurrente**.
