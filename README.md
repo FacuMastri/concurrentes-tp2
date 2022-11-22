@@ -426,12 +426,14 @@ recibiendo pedidos de las cafeteras.
 
 El programa escucha constantemente por `stdin` por comandos indicando la acción a realizar y la dirección del servidor.
 
-## Desarrollo
+## Ejecución
 
-- `make` en el directorio raíz corre `fmt`, `test` y `clippy` para el espacio de trabajo.
-- `coffee_maker <local_server> [<orders>] [sucess_chance]`
-- `local_server <address> [<known_server_address>]`
-- `controller`
+Suponiendo que nos encontramos en el `root` del proyecto.
+
+- `make` corre `fmt`, `test` y `clippy` para el espacio de trabajo.
+- `cargo run --bin coffee_maker <local_server> [<orders>] [sucess_chance]`
+- `cargo run --bin local_server <address> [<known_server_address>]`
+- `cargo run --bin controller`
   - `<Disconnect/Connect> <address>`
 
 > **Nota:** Las direcciones son de la forma `ip:puerto` o `puerto` (en cuyo caso se usa `localhost`)
