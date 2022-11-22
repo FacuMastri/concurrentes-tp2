@@ -96,49 +96,49 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-participant oh as OrderHandler
-participant ps as PointStorage
+  participant oh as OrderHandler
+  participant ps as PointStorage
 
-oh ->> ps: reservar puntos
-ps -->> oh: Err
+  oh ->> ps: reservar puntos
+  ps -->> oh: Err
 
-note right of oh: Error
+  note right of oh: Error
 ```
 
 ##### Orden exitosa
 
 ```mermaid
 sequenceDiagram
-participant oh as OrderHandler
-participant ps as PointStorage
+  participant oh as OrderHandler
+  participant ps as PointStorage
 
-oh ->> ps: reservar puntos
-ps -->> oh: Ok
+  oh ->> ps: reservar puntos
+  ps -->> oh: Ok
 
-note right of oh: hace cafe correctamente
+  note right of oh: hace cafe correctamente
 
-oh ->> ps: consumir puntos
-ps -->> oh: Ok
+  oh ->> ps: consumir puntos
+  ps -->> oh: Ok
 
-note right of oh: Éxito
+  note right of oh: Éxito
 ```
 
 ##### Orden fallida
 
 ```mermaid
 sequenceDiagram
-participant oh as OrderHandler
-participant ps as PointStorage
+  participant oh as OrderHandler
+  participant ps as PointStorage
 
-oh ->> ps: reservar puntos
-ps -->> oh: Ok
+  oh ->> ps: reservar puntos
+  ps -->> oh: Ok
 
-note right of oh: falla en hacer cafe
+  note right of oh: falla en hacer cafe
 
-oh ->> ps: liberar puntos
-ps -->> oh: Ok
+  oh ->> ps: liberar puntos
+  ps -->> oh: Ok
 
-note right of oh: Error
+  note right of oh: Error
 ```
 
 </details>
@@ -195,17 +195,38 @@ Cuando el servidor se **desconecta** (conectado -> desconectado) **detiene** el 
 
 Cuando el servidor se **reconecta** (desconectado -> conectado) se **sincroniza** con los demás servidores y **reanuda** el procesamiento de pendientes.
 
-<details>
+<details open>
 <summary><h4 id="transacciones_distribuidas">Transacciones Distribuidas</h4></summary>
 
-Las transacciones se ejecutan en **2 fases**
+El servidor que recibe el pedido hace de **coordinador** de la transacción.
+
+Las transacciones se ejecutan en **2 fases**:
+
+1. Preparación [`PREPARE`]
+   - El coordinador intenta tomar el recurso necesario
+   - Verifica poder realizar la transacción
+   - Comienza una comunicación de tipo `TRANSACTION` con los demás servidores
+2. Finalización [`COMMIT`/`ABORT`]
+   - Al recibir el mensaje, los servidores locales:
+     - Intentan tomar el recurso necesario
+     - Verifican poder realizar la transacción
+     - Responden `Proceed` o `Abort` según corresponda
+   - Al recibir las respuestas
+     - Si mas de la mitad respondieron `Proceed`, y ninguno `Abort`:
+       - El coordinador envía `Proceed` a los demás servidores
+       - Todos los servidores aplican la transacción
+     - Si faltan suficientes respuestas o alguna es `Abort`:
+       - El coordinador envía `Abort` a los demás servidores
+       - Agrega la transacción a la lista de pendientes, si puede ser resuelta mas adelante
+
+Para prevenir deadlocks, se implementa **wait-die**
 
 ##### Transacción Exitosa
 
 ```mermaid
 sequenceDiagram
-A->>B: Msg
-B-->>A: Rta
+  A->>B: Msg
+  B-->>A: Rta
 ```
 
 </details>
@@ -218,8 +239,8 @@ B-->>A: Rta
 
 ```mermaid
 sequenceDiagram
-A->>B: Msg
-B-->>A: Rta
+  A->>B: Msg
+  B-->>A: Rta
 ```
 
 </details>
