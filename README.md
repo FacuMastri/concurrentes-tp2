@@ -225,8 +225,61 @@ Para prevenir deadlocks, se implementa **wait-die**
 
 ```mermaid
 sequenceDiagram
-  A->>B: Msg
-  B-->>A: Rta
+  participant co as Coordinator
+  participant s1 as Server
+  participant s2 as Server
+
+  co ->> s1: TRANSACTION
+  co ->> s2: TRANSACTION
+  s1 -->> co: Proceed
+  s2 -->> co: Proceed
+  co ->> s1: Proceed
+  co ->> s2: Proceed
+  note over s1: Transacción Exitosa
+```
+
+##### Transacción Abortada
+
+```mermaid
+sequenceDiagram
+  participant co as Coordinator
+  participant s1 as Server
+  participant s2 as Server
+
+  co ->> s1: TRANSACTION
+  co ->> s2: TRANSACTION
+
+  s1 -->> co: Proceed
+  s2 -->> co: Abort
+
+  co ->> s1: Abort
+  co ->> s2: Abort
+
+  note over s1: Transacción Fallida
+```
+
+##### Transacción Abortada por falta de respuestas
+
+```mermaid
+sequenceDiagram
+  participant co as Coordinator
+  participant s1 as Server
+  participant s2 as Server
+  participant s3 as Server
+
+  co ->> s1: TRANSACTION
+  co -x s2: TRANSACTION
+  co -x s3: TRANSACTION
+
+  s1 -->> co: Proceed
+
+  note over s2: Timeout
+  note over s3: Timeout
+
+  co ->> s1: Abort
+  co -->> s2: Abort
+  co -->> s3: Abort
+  note right of s1: Transacción Fallida
 ```
 
 </details>
