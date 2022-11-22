@@ -14,10 +14,12 @@ Coffeewards, es un sistema de puntos para fidelización de los clientes.
 
 Por cada compra que realizan los clientes, suman puntos que luego pueden canjear por cafes gratuitos.
 
+> **Nota:** Los gráficos y diagramas aquí presentes son son ilustrativos y apuntan a transmitir el concepto del sistema. Puede haber _abreviaciones_ o _alteraciones_ tanto de las _entidades_ como de las _operaciones_ en pos de _simplificar_ el entendimiento de las características esenciales.
+
 <!--
-- [ ] explicación del diseño y de las decisiones tomadas para la implementación
-- [ ] diagramas de threads y procesos, y la comunicación entre los mismos
-- [ ] diagramas de las entidades principales
+- [x] explicación del diseño y de las decisiones tomadas para la implementación
+- [x] diagramas de threads y procesos, y la comunicación entre los mismos
+- [x] diagramas de las entidades principales
 -->
 
 ## Diseño
@@ -102,7 +104,7 @@ sequenceDiagram
   oh ->> ps: reservar puntos
   ps -->> oh: Err
 
-  note right of oh: Error
+  note over oh,ps: Error
 ```
 
 ##### Orden exitosa
@@ -115,12 +117,12 @@ sequenceDiagram
   oh ->> ps: reservar puntos
   ps -->> oh: Ok
 
-  note right of oh: hace cafe correctamente
+  note over oh: hace cafe correctamente
 
   oh ->> ps: consumir puntos
   ps -->> oh: Ok
 
-  note right of oh: Éxito
+  note over oh,ps: Éxito
 ```
 
 ##### Orden fallida
@@ -133,12 +135,12 @@ sequenceDiagram
   oh ->> ps: reservar puntos
   ps -->> oh: Ok
 
-  note right of oh: falla en hacer cafe
+  note over oh: falla en hacer cafe
 
   oh ->> ps: liberar puntos
   ps -->> oh: Ok
 
-  note right of oh: Error
+  note over oh,ps: Error
 ```
 
 </details>
@@ -195,7 +197,7 @@ Cuando el servidor se **desconecta** (conectado -> desconectado) **detiene** el 
 
 Cuando el servidor se **reconecta** (desconectado -> conectado) se **sincroniza** con los demás servidores y **reanuda** el procesamiento de pendientes.
 
-<details open>
+<details >
 <summary><h4 id="transacciones_distribuidas">Transacciones Distribuidas</h4></summary>
 
 El servidor que recibe el pedido hace de **coordinador** de la transacción.
@@ -235,7 +237,7 @@ sequenceDiagram
   s2 -->> co: Proceed
   co ->> s1: Proceed
   co ->> s2: Proceed
-  note over s1: Transacción Exitosa
+  note over co,s2: Transacción Exitosa
 ```
 
 ##### Transacción Abortada
@@ -255,7 +257,7 @@ sequenceDiagram
   co ->> s1: Abort
   co ->> s2: Abort
 
-  note over s1: Transacción Fallida
+  note over co,s2: Transacción Fallida
 ```
 
 ##### Transacción Abortada por falta de respuestas
@@ -279,12 +281,12 @@ sequenceDiagram
   co ->> s1: Abort
   co -->> s2: Abort
   co -->> s3: Abort
-  note right of s1: Transacción Fallida
+  note over co,s3: Transacción Fallida
 ```
 
 </details>
 
-<details open>
+<details >
 
 <summary><h4>Detalles de Implementación</h4></summary>
 
@@ -305,8 +307,8 @@ classDiagram
     servers : Addr[]
     pending : Transaction[]
 
-    coordinate(Transaction)
-    handle(Transaction)
+    coordinate(Message)
+    handle(Message)
   }
 
   class PointRecord {
@@ -333,11 +335,75 @@ classDiagram
 
 ```
 
-<!--
 ##### Threads
 
-##### Manejo de Mensajes
--->
+```mermaid
+flowchart LR
+    subgraph Local Server
+      s[Server]
+      c1(Client) --> s
+      c2(Client) --> s
+
+      s --> c(CoordinateTx)
+      s --> h(HandleTx)
+    end
+    subgraph External Processes
+      c -.- eh1(HandleTx)
+      c -.- eh2(HandleTx)
+      h -.- ec(CoordinateTx)
+
+      eh1 --- s1[Server]
+      eh2 --- s2[Server]
+      ec --- s2
+    end
+```
+
+##### Secuencia de una orden
+
+```mermaid
+sequenceDiagram
+    participant c as Client
+    participant s as Server
+    participant ps as PointStorage
+    participant pr as PointRecord
+    participant e as External
+
+    c->>+s: Fill ( id: 1, amount: 1)
+
+    s ->>+ ps: coordinate( fill, 1, 1 )
+    ps --> pr: wait-die
+    ps ->> pr : coordinate( Transaction )
+
+    note over pr,e : Successful Transaction
+
+    pr ->> ps: Ok
+    ps ->> s: Ok
+
+    s ->>-c: Ok
+```
+
+##### Secuencia de una transacción
+
+```mermaid
+sequenceDiagram
+    participant e as ExternalServer
+    participant s as Server
+    participant ps as PointStorage
+    participant pr as PointRecord
+
+    e->>+s: Transaction
+
+    s ->> ps: handle( Transaction )
+    ps --> pr: wait-die
+    ps ->> pr: handle( Transaction )
+
+    pr -->> e : Proceed
+    e ->> pr: Proceed | Abort
+
+    note over pr : Apply | Abort
+
+    s -->-e: end connection
+```
 
 </details>
 
