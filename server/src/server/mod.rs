@@ -390,7 +390,7 @@ mod tests {
     use serde_json::{json, Value};
     use serial_test::serial;
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::{Child, Command, Stdio};
     use std::thread;
     use std::time::Duration;
 
@@ -431,6 +431,56 @@ mod tests {
         }
     }
 
+    fn create_server(address: &str, known_server_address: Option<&str>) -> Child {
+        if let Some(known_address) = known_server_address {
+            return Command::new("cargo")
+                .args(["run", "--bin", "server", address, known_address])
+                .stdout(Stdio::null())
+                .spawn()
+                .expect("Failed to start server");
+        }
+        Command::new("cargo")
+            .args(["run", "--bin", "server", address])
+            .stdout(Stdio::null())
+            .spawn()
+            .expect("Failed to start server")
+    }
+
+    fn create_coffee_maker(
+        address: &str,
+        orders_path: &str,
+        success_chance: Option<usize>,
+    ) -> Child {
+        if let Some(chance) = success_chance {
+            return Command::new("cargo")
+                .current_dir("../")
+                .args([
+                    "run",
+                    "--bin",
+                    "coffee_maker",
+                    address,
+                    orders_path,
+                    &chance.to_string(),
+                ])
+                .stdout(Stdio::null())
+                .spawn()
+                .expect("Failed to start coffee maker");
+        }
+        Command::new("cargo")
+            .current_dir("../")
+            .stdout(Stdio::null())
+            .args([
+                "run",
+                "--bin",
+                "coffee_maker",
+                address,
+                orders_path,
+                &1.to_string(),
+            ])
+            .spawn()
+            .expect("Failed to start coffee maker")
+    }
+
     #[test]
     #[serial]
     fn two_servers_should_sync_with_50_points_on_client_2() {
@@ -443,32 +493,16 @@ mod tests {
             }
         })
         .to_string();
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test-2.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test-2.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
@@ -497,40 +531,17 @@ mod tests {
             }
         })
         .to_string();
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test-2.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test-2.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
-        let mut new_server = Command::new("cargo")
-            .args(["run", "--bin", "server", "9002", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+        let mut new_server = create_server("9002", Some("9000"));
         thread::sleep(Duration::from_millis(1000));
 
         // Syncing with the new server on port 9002
@@ -555,28 +566,16 @@ mod tests {
             }
         })
         .to_string();
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-        // El sleep es para dar tiempo a buildear al tirar un cargo run
 
+        let mut server_2 = create_server("9001", Some("9000"));
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_3 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9002", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_3 = create_server("9002", Some("9000"));
+        // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
         // Desconectamos al server 9001
@@ -587,18 +586,7 @@ mod tests {
         thread::sleep(Duration::from_millis(1000));
 
         // Le ponemos una orden al server que esta desconectado
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9001",
-                "assets/orders-3-test-2.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-2.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
@@ -643,25 +631,15 @@ mod tests {
                 }
             }
         });
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
-        let mut server_3 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9002", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
+
+        let mut server_3 = create_server("9002", Some("9000"));
 
         thread::sleep(Duration::from_millis(1000));
 
@@ -673,35 +651,12 @@ mod tests {
         thread::sleep(Duration::from_millis(1000));
 
         // Le ponemos una orden al server que esta desconectado
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9001",
-                "assets/orders-3-test-2.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-2.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
         // Le ponemos una orden al resto de los servers conectados
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
-
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test.csv", None);
         coffee_maker.wait().unwrap();
 
         // Conectamos al server 9001
@@ -767,37 +722,16 @@ mod tests {
             }
         })
         .to_string();
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
         // Aplicamos una orden a los servidores que estan conectados
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
@@ -807,19 +741,7 @@ mod tests {
         let _ = request_disconnect.unwrap().send();
 
         // Le ponemos una orden de USE POINTS al servidor 9001 desconectado
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9001",
-                "assets/orders-3-test-3.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
-
+        let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-3.csv", None);
         coffee_maker.wait().unwrap();
 
         // Conectamos al servidor 9001
@@ -855,63 +777,25 @@ mod tests {
             }
         })
         .to_string();
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_3 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9002", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_3 = create_server("9002", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
         // Aplicamos una orden a los servidores que estan conectados
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
         // Le ponemos una orden de USE POINTS al servidor 9001
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9001",
-                "assets/orders-3-test-3.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
-
+        let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-3.csv", None);
         coffee_maker.wait().unwrap();
 
         let synced_points_server_1 =
@@ -954,56 +838,22 @@ mod tests {
             }
         })
         .to_string();
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
         // Aplicamos una orden a los servidores que estan conectados
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
         // Le ponemos una orden de USE POINTS al servidor 9001, pero
         // debe fallar al tener una success_chance = 0
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9001",
-                "assets/orders-3-test-3.csv",
-                "0",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
-
+        let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-3.csv", Some(0));
         thread::sleep(Duration::from_millis(1000));
 
         let sync_reserved_points_server_1 =
@@ -1055,56 +905,22 @@ mod tests {
         })
         .to_string();
 
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
         // Aplicamos una orden a los servidores que estan conectados
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
         // Le ponemos una orden de USE POINTS al servidor 9001, pero
         // debe procesar bien la orden al tener una success_chance = 1
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9001",
-                "assets/orders-3-test-3.csv",
-                "1",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
-
+        let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-3.csv", Some(1));
         // Sleep para dar tiempo a que al server 9001 le llegue la orden,
         // reserve los puntos y pero no espere la confirmacion de la cafetera
         thread::sleep(Duration::from_millis(1000));
@@ -1158,68 +974,29 @@ mod tests {
         })
         .to_string();
 
-        let mut server_1 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_1 = create_server("9000", None);
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_2 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9001", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_2 = create_server("9001", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
-        let mut server_3 = Command::new("cargo")
-            .args(["run", "--bin", "server", "9002", "9000"])
-            .stdout(Stdio::null())
-            .spawn()
-            .expect("Failed to start server");
-
+        let mut server_3 = create_server("9002", Some("9000"));
         // El sleep es para dar tiempo a buildear al tirar un cargo run
         thread::sleep(Duration::from_millis(1000));
 
         // Aplicamos una orden a los servidores que estan conectados
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9000",
-                "assets/orders-3-test.csv",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
+        let mut coffee_maker = create_coffee_maker("9000", "assets/orders-3-test.csv", None);
         // Esperamos que la cafetera termine de procesar
         coffee_maker.wait().unwrap();
 
         // Le ponemos una orden de USE POINTS al servidor 9001, pero
         // debe procesar bien la orden al tener una success_chance = 1
-        let mut coffee_maker = Command::new("cargo")
-            .current_dir("../")
-            .stdout(Stdio::null())
-            .args([
-                "run",
-                "--bin",
-                "coffee_maker",
-                "9001",
-                "assets/orders-3-test-3.csv",
-                "1",
-            ])
-            .spawn()
-            .expect("Failed to start coffee maker");
-
+        let mut coffee_maker = create_coffee_maker("9001", "assets/orders-3-test-3.csv", Some(1));
         // Sleep para dar tiempo a que al server 9001 le llegue la orden,
         // reserve los puntos y pero no espere la confirmacion de la cafetera
         thread::sleep(Duration::from_millis(1000));
