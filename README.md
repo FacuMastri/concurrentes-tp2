@@ -8,7 +8,7 @@ Coffeewards
 
 </h1>
 
-![Coffeewards](assets/CoffeeWards.gif)
+![Coffeewards](docs/coffeewards.png)
 
 Coffeewards, es un sistema de puntos para fidelización de los clientes.
 
@@ -196,6 +196,8 @@ Cuando el servidor se **reconecta** (desconectado -> conectado) se **sincroniza*
 
 <details>
 <summary><h4 id="transacciones_distribuidas">Transacciones Distribuidas</h4></summary>
+
+Las transacciones se ejecutan en **2 fases**
 
 ##### Transacción Exitosa
 
