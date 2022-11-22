@@ -935,7 +935,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn server_should_restore_points_when_use_order_fails() {
+    fn server_should_restore_points_when_use_points_order_fails() {
         let expected_result = json!({
         "points": {
             "1": {
@@ -1069,7 +1069,7 @@ mod tests {
         coffee_maker.wait().unwrap();
 
         // Le ponemos una orden de USE POINTS al servidor 9001, pero
-        // debe seguir al tener una success_chance = 1
+        // debe procesar bien la orden al tener una success_chance = 1
         let mut coffee_maker = Command::new("cargo")
             .current_dir("../")
             .stdout(Stdio::null())
