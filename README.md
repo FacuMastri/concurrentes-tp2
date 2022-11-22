@@ -3,7 +3,7 @@ Coffeewards
 
 <a href="docs/consigna.md)">
   <img align="right" height="40"
-  alt="ES" src="https://cdn-icons-png.flaticon.com/512/2541/2541984.png">
+  alt="consigna" src="https://github.com/concurrentes-fiuba/2022-2c-tp2-otra-cosa/blob/main/docs/consigna.md">
 </a>
 
 </h1>
