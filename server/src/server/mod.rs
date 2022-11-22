@@ -465,7 +465,7 @@ mod tests {
                 "--bin",
                 "coffee_maker",
                 "9000",
-                "assets/orders-3.csv",
+                "assets/orders-3-test-2.csv",
             ])
             .spawn()
             .expect("Failed to start coffee maker");
@@ -519,7 +519,7 @@ mod tests {
                 "--bin",
                 "coffee_maker",
                 "9000",
-                "assets/orders-3.csv",
+                "assets/orders-3-test-2.csv",
             ])
             .spawn()
             .expect("Failed to start coffee maker");
@@ -567,11 +567,15 @@ mod tests {
             .spawn()
             .expect("Failed to start server");
         // El sleep es para dar tiempo a buildear al tirar un cargo run
+
         thread::sleep(Duration::from_millis(1000));
+
         let mut server_3 = Command::new("cargo")
             .args(["run", "--bin", "server", "9002", "9000"])
             .spawn()
             .expect("Failed to start server");
+
+        thread::sleep(Duration::from_millis(1000));
 
         // Desconectamos al server 9001
         let disconnect = "d 9001";
@@ -589,7 +593,7 @@ mod tests {
                 "--bin",
                 "coffee_maker",
                 "9001",
-                "assets/orders-3.csv",
+                "assets/orders-3-test-2.csv",
             ])
             .spawn()
             .expect("Failed to start coffee maker");
@@ -601,7 +605,7 @@ mod tests {
         let request_connect = Request::parse(connect);
         let _ = request_connect.unwrap().send();
 
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(2000));
 
         // Synceamos con los 3 server
         let synced_points_server_1 =
@@ -675,7 +679,7 @@ mod tests {
                 "--bin",
                 "coffee_maker",
                 "9001",
-                "assets/orders-3.csv",
+                "assets/orders-3-test-2.csv",
             ])
             .spawn()
             .expect("Failed to start coffee maker");
